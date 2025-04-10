@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AutoKey Popup</title>
+    <link rel="stylesheet" href="popup.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+    <img src="AutoKey Logo.png" id="logoImage" alt="AutoKey Logo">
+    <h1>AutoKey - Shadow Access Autofill</h1>
+<div id="main-content">
+
+    <div>
+        <div class="file-input-wrapper">
+            <label for="csvFileInput" class="file-input-label">Upload CSV</label>
+            <input type="file" id="csvFileInput" accept=".csv">
+        </div>
+    </div>
+    <p id="fileInfoDisplay" style="font-size: 0.8em; color: #ccc;"></p>
+
+    <div>
+        <label for="companySelect">Company:</label>
+        <select id="companySelect">
+            <option value="" disabled selected>-- Select Company --</option>
+        </select>
+    </div>
+
+    <div>
+        <label for="uidInput">UID:</label>
+        <input type="text" id="uidInput" readonly>
+    </div>
+
+    <div>
+        <label for="usernameInput">Username:</label>
+        <input type="text" id="usernameInput" readonly>
+    </div>
+
+    <div>
+        <label for="platformInput">Platform:</label>
+        <input type="text" id="platformInput" readonly>
+    </div>
+
+    <button id="fillButton">Autofill</button>
+</div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
