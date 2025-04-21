@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AutoKey - Basic</title>
+    <link rel="stylesheet" href="basic.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header with logo and login -->
+        <header class="app-header">
+            <div class="logo-container">
+                <img src="AutoKey Logo.png" alt="AutoKey Logo" class="logo-image">
+            </div>
+
+            <!-- Auth controls -->
+            <div class="auth-controls">
+                <!-- When logged out -->
+                <div id="logged-out-controls" class="auth-state">
+                    <button id="login-button" type="button" class="auth-button">Login</button>
+                </div>
+
+                <!-- When logged in -->
+                <div id="logged-in-controls" class="auth-state hidden">
+                    <div class="user-menu-wrapper">
+                        <button id="user-menu-button" type="button" class="user-avatar">
+                            <span id="user-initial">A</span>
+                        </button>
+                        <div id="user-dropdown" class="dropdown-menu hidden">
+                            <div class="dropdown-header">
+                                <span id="user-email">user@example.com</span>
+                                <span id="user-role" class="user-role">User</span>
+                            </div>
+                            <div class="dropdown-divider"></div>
+                            <button id="logout-button" type="button" class="dropdown-item">
+                                Logout
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main content area -->
+        <main id="main-content">
+            <h2>AutoKey Extension</h2>
+            <p>Welcome to AutoKey! This extension helps you autofill credentials.</p>
+
+            <div class="form-section">
+                <div class="form-group">
+                    <label for="companySelect">Company</label>
+                    <select id="companySelect">
+                        <option value="" disabled selected>-- Select Company --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="uidInput">UID</label>
+                    <input type="text" id="uidInput" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label for="usernameInput">Username</label>
+                    <input type="text" id="usernameInput" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label for="platformInput">Platform</label>
+                    <input type="text" id="platformInput" readonly>
+                </div>
+
+                <button id="fillButton" type="button">Autofill</button>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>v1.0.0</p>
+        </footer>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Account</h3>
+                <button id="close-modal" type="button" class="modal-close">&times;</button>
+            </div>
+
+            <div class="auth-tabs">
+                <button id="login-tab" type="button" class="auth-tab active">Login</button>
+                <button id="signup-tab" type="button" class="auth-tab">Sign Up</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" class="auth-form active">
+                <div class="form-group">
+                    <label for="login-email" class="form-label">Email</label>
+                    <input type="email" id="login-email" class="form-input" placeholder="Enter your email" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password" class="form-label">Password</label>
+                    <input type="password" id="login-password" class="form-input" placeholder="Enter your password" required>
+                </div>
+                <button id="login-submit" type="submit" class="action-button">
+                    <span class="button-text">Login</span>
+                </button>
+            </form>
+
+            <!-- Signup Form -->
+            <form id="signup-form" class="auth-form">
+                <div class="form-group">
+                    <label for="signup-email" class="form-label">Email</label>
+                    <input type="email" id="signup-email" class="form-input" placeholder="Enter your email" required>
+                </div>
+                <div class="form-group">
+                    <label for="signup-password" class="form-label">Password</label>
+                    <input type="password" id="signup-password" class="form-input" placeholder="Create a password" required>
+                </div>
+                <div class="form-group">
+                    <label for="signup-confirm" class="form-label">Confirm Password</label>
+                    <input type="password" id="signup-confirm" class="form-input" placeholder="Confirm your password" required>
+                </div>
+                <button id="signup-submit" type="submit" class="action-button">
+                    <span class="button-text">Sign Up</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Load Supabase JS from CDN with specific version -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2.38.4/dist/umd/supabase.js"></script>
+
+    <!-- Load our scripts -->
+    <script>
+        // Initialize Supabase client
+        const supabaseUrl = 'https://urhehutiqaazkfccaenf.supabase.co';
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyaGVodXRpcWFhemtmY2NhZW5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyMDg3MzksImV4cCI6MjA2MDc4NDczOX0.TxmtQDJ-dtGREZNZiLh8RmjlmOurMpKucooEukuDSzI';
+
+        // Initialize the Supabase client
+        // The UMD build exposes a global "supabaseClient" function
+        const supabase = supabaseClient.createClient(supabaseUrl, supabaseAnonKey);
+        console.log('Supabase client initialized:', supabase);
+    </script>
+    <script src="popup-basic.js"></script>
+</body>
+</html>

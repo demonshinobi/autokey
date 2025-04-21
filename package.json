@@ -1,0 +1,17 @@
+{
+  "name": "autokey-extension",
+  "version": "1.0.0",
+  "description": "This extension helps autofill the Autotask Endpoint Management (AEM) shadow access login page using details from a CSV file.",
+  "main": "content.js",
+  "scripts": {
+    "build": "esbuild popup.js --bundle --outfile=dist/bundle.js --format=esm --sourcemap",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.49.4",
+    "esbuild": "^0.25.2"
+  }
+}

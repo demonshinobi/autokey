@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoKey Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+        }
+        h1 {
+            color: #333;
+            margin-top: 0;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AutoKey Test Form</h1>
+        <form id="testForm">
+            <div class="form-group">
+                <label for="accountUid">Account UID:</label>
+                <input type="text" id="accountUid" name="accountUid">
+            </div>
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username">
+            </div>
+            <div class="form-group">
+                <label for="instance">Instance:</label>
+                <input type="text" id="instance" name="instance">
+            </div>
+            <button type="submit">Submit</button>
+        </form>
+    </div>
+
+    <script>
+        // Listen for messages from the extension
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.action === 'autofill') {
+                const data = event.data.data;
+                document.getElementById('accountUid').value = data.AccountUid || '';
+                document.getElementById('username').value = data.username || '';
+                document.getElementById('instance').value = data.instance || '';
+                console.log('Form autofilled with:', data);
+            }
+        });
+
+        // Also listen for direct messages from content scripts
+        document.addEventListener('AutoKeyAutofill', function(e) {
+            const data = e.detail;
+            document.getElementById('accountUid').value = data.AccountUid || '';
+            document.getElementById('username').value = data.username || '';
+            document.getElementById('instance').value = data.instance || '';
+            console.log('Form autofilled with custom event:', data);
+        });
+    </script>
+</body>
+</html>

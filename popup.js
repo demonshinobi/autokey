@@ -1,4 +1,12 @@
+import { signIn, signUp, signOut, getSession, isUserAdmin, onAuthStateChange } from './supabase/auth.js';
+import { uploadCSVData, getAllCompanyCredentials, getMostRecentCSVFile, getAllUsers, updateUserRole } from './supabase/database.js';
+
+// Simple version without modules
+console.log('AutoKey extension loaded - simplified version');
+
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('[DEBUG] DOMContentLoaded event fired.');
+
     // Add animation class to body after DOM is loaded for initial animation
     setTimeout(() => {
         document.body.classList.add('loaded');
@@ -21,16 +29,57 @@ document.addEventListener('DOMContentLoaded', () => {
     // Call initUI after a short delay
     setTimeout(initUI, 300);
 
-    const csvFileInput = document.getElementById('csvFileInput');
-    const companySelect = document.getElementById('companySelect');
-    const uidInput = document.getElementById('uidInput');
-    const usernameInput = document.getElementById('usernameInput');
-    const platformInput = document.getElementById('platformInput');
-    const fillButton = document.getElementById('fillButton'); // Get reference to the button
-    let companyDataCache = []; // Cache loaded data
 
-    // --- CSV Parsing Function ---
-    function parseCSV(csvText) {
+// --- UI Elements ---
+// Get references to the elements we need
+const loginButton = document.getElementById('login-button');
+console.log('[DEBUG] loginButton element:', loginButton);
+
+const loggedOutControls = document.getElementById('logged-out-controls');
+const loggedInControls = document.getElementById('logged-in-controls');
+const userMenuButton = document.getElementById('user-menu-button');
+const userDropdown = document.getElementById('user-dropdown');
+const userInitial = document.getElementById('user-initial');
+const userEmail = document.getElementById('user-email');
+const userRole = document.getElementById('user-role');
+const logoutButton = document.getElementById('logout-button');
+const adminPanelButton = document.getElementById('admin-panel-button');
+
+// Login modal elements
+const loginModal = document.getElementById('login-modal');
+const closeModal = document.getElementById('close-modal');
+const loginTab = document.getElementById('login-tab');
+const signupTab = document.getElementById('signup-tab');
+const loginForm = document.getElementById('login-form');
+const signupForm = document.getElementById('signup-form');
+const loginSubmit = document.getElementById('login-submit');
+const signupSubmit = document.getElementById('signup-submit');
+
+// Admin modal elements
+const adminModal = document.getElementById('admin-modal');
+const closeAdminModal = document.getElementById('close-admin-modal');
+const csvTab = document.getElementById('csv-tab');
+const usersTab = document.getElementById('users-tab');
+const csvManagement = document.getElementById('csv-management');
+const userManagement = document.getElementById('user-management');
+
+// Main content elements
+const mainContent = document.getElementById('main-content');
+const csvFileInput = document.getElementById('csvFileInput');
+const companySelect = document.getElementById('companySelect');
+const uidInput = document.getElementById('uidInput');
+const usernameInput = document.getElementById('usernameInput');
+const platformInput = document.getElementById('platformInput');
+const fillButton = document.getElementById('fillButton');
+const fileInfoDisplay = document.getElementById('fileInfoDisplay');
+
+// --- State Variables ---
+let currentUser = null;
+let isAdmin = false;
+let companyCredentialsCache = []; // Cache for credentials fetched from Supabase
+
+// --- CSV Parsing Function (Still needed for upload) ---
+function parseCSV(csvText) {
         console.log("Starting CSV parse...");
         const lines = csvText.trim().split('\n');
         if (lines.length < 2) {
@@ -114,11 +163,11 @@ document.addEventListener('DOMContentLoaded', () => {
         return data;
     }
 
-    // --- Populate Dropdown Function ---
+    // --- Populate Dropdown Function (Will be updated later) ---
     function populateDropdown(companyData) {
         console.log('[populateDropdown] Received companyData:', JSON.stringify(companyData)); // Log received data
         console.log('[populateDropdown] companySelect element:', companySelect); // Log element reference
-        companyDataCache = companyData || []; // Update cache
+        companyCredentialsCache = companyData || []; // Update cache (using new variable)
         // Clear existing options except the first one ("-- Select Company --")
         console.log(`[populateDropdown] Before clearing: ${companySelect.options.length} options`);
         while (companySelect.options.length > 1) {
@@ -126,8 +175,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         console.log(`[populateDropdown] After clearing: ${companySelect.options.length} options`);
 
-        if (companyDataCache && companyDataCache.length > 0) {
-            companyDataCache.forEach(company => {
+        if (companyCredentialsCache && companyCredentialsCache.length > 0) {
+            companyCredentialsCache.forEach(company => {
                 console.log(`[populateDropdown] Processing company: ${company['Account Name']}`);
                 const option = document.createElement('option');
                 option.value = company["Account Name"];
@@ -156,30 +205,300 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Update UI based on authentication state
+    async function updateUIBasedOnAuthState(user) {
+        console.log('Updating UI based on auth state:', user);
 
-    // --- Load Data on Popup Open ---
-    console.log("Attempting to load data from chrome.storage.local...");
-    chrome.storage.local.get(['loadedCsvData'], (result) => { // Get the new object
-        console.log("chrome.storage.local.get callback executed.");
-        if (chrome.runtime.lastError) {
-            console.error("Error loading data from storage:", chrome.runtime.lastError);
-            populateDropdown([]); // Clear dropdown
-            updateFileInfoDisplay(null, null); // Clear display
-        } else if (result && result.loadedCsvData) {
-            // Check if the new object exists
-            const fileInfo = result.loadedCsvData;
-            console.log("SUCCESS: Loaded CSV data object from storage:", fileInfo);
-            console.log("Calling populateDropdown with extracted company data...");
-            populateDropdown(fileInfo.companyData || []); // Pass the company data array
-            console.log("Calling updateFileInfoDisplay with loaded file info...");
-            updateFileInfoDisplay(fileInfo.name, fileInfo.uploadDate); // Update the display
+        // Update current user and check admin status
+        currentUser = user;
+        isAdmin = user ? await isUserAdmin() : false;
+
+        if (user) {
+            // User is logged in
+            console.log('User is logged in. Is admin:', isAdmin);
+
+            // Show logged-in controls, hide logged-out controls
+            if (loggedInControls) loggedInControls.classList.remove('hidden');
+            if (loggedOutControls) loggedOutControls.classList.add('hidden');
+
+            // Update user info in dropdown
+            if (userInitial) userInitial.textContent = user.email.charAt(0).toUpperCase();
+            if (userEmail) userEmail.textContent = user.email;
+            if (userRole) userRole.textContent = isAdmin ? 'Admin' : 'User';
+
+            // Show/hide admin panel button based on admin status
+            if (adminPanelButton) {
+                if (isAdmin) {
+                    adminPanelButton.classList.remove('hidden');
+                } else {
+                    adminPanelButton.classList.add('hidden');
+                }
+            }
+
+            // Show/hide CSV upload section based on email
+            const fileInputWrapper = csvFileInput ? csvFileInput.closest('.file-input-wrapper') : null;
+            if (fileInputWrapper) {
+                if (user.email === 'joshua.cancel@kaseya.com') {
+                    fileInputWrapper.style.display = 'block';
+                    console.log('CSV upload visible - User is joshua.cancel@kaseya.com');
+                } else {
+                    fileInputWrapper.style.display = 'none';
+                    console.log('CSV upload hidden - User is not joshua.cancel@kaseya.com');
+                }
+            }
+
+            // Show main content
+            if (mainContent) mainContent.style.display = 'block';
+
+            // Load credentials from Supabase
+            try {
+                const credentials = await getAllCompanyCredentials();
+                console.log('Loaded credentials:', credentials);
+                populateDropdown(credentials);
+
+                // Update file info if available
+                if (credentials.length > 0 && credentials[0]._fileInfo) {
+                    updateFileInfoDisplay(credentials[0]._fileInfo.name, credentials[0]._fileInfo.uploadDate);
+                }
+            } catch (error) {
+                console.error('Error loading credentials:', error);
+                showToast(`Error loading credentials: ${error.message}`, 'error');
+            }
+
         } else {
-            console.log("No loadedCsvData found in storage. Result:", result);
-            console.log("Calling populateDropdown with empty array...");
-            populateDropdown([]); // Ensure dropdown is cleared
-            console.log("Calling updateFileInfoDisplay with null values...");
-            updateFileInfoDisplay(null, null); // Clear display
+            // User is logged out
+            console.log('User is logged out');
+
+            // Show logged-out controls, hide logged-in controls
+            if (loggedOutControls) loggedOutControls.classList.remove('hidden');
+            if (loggedInControls) loggedInControls.classList.add('hidden');
+
+            // Clear user info
+            if (userInitial) userInitial.textContent = '';
+            if (userEmail) userEmail.textContent = '';
+            if (userRole) userRole.textContent = '';
+
+            // Hide admin panel button
+            if (adminPanelButton) adminPanelButton.classList.add('hidden');
+
+            // Show main content (we still want to show the UI even when logged out)
+            if (mainContent) mainContent.style.display = 'block';
+
+            // Clear dropdown
+            populateDropdown([]);
+            updateFileInfoDisplay(null, null);
         }
+    }
+
+    // We'll implement Supabase integration in the future
+
+
+    // --- Authentication Event Listeners ---
+    // Login button shows the login modal
+    if (loginButton) {
+        loginButton.addEventListener('click', () => {
+        console.log('[DEBUG] Adding click listener to loginButton.');
+
+            console.log('Login button clicked');
+            if (loginModal) {
+                loginModal.classList.add('visible');
+            }
+        });
+    } else {
+        console.warn("Login button not found in popup.html");
+    }
+
+    // Close modal button
+    if (closeModal) {
+        closeModal.addEventListener('click', () => {
+            if (loginModal) {
+                loginModal.classList.remove('visible');
+            }
+        });
+    }
+
+    // Tab switching in login modal
+    if (loginTab && signupTab) {
+        loginTab.addEventListener('click', () => {
+            loginTab.classList.add('active');
+            signupTab.classList.remove('active');
+            if (loginForm) loginForm.classList.add('active');
+            if (signupForm) signupForm.classList.remove('active');
+        });
+
+        signupTab.addEventListener('click', () => {
+            signupTab.classList.add('active');
+            loginTab.classList.remove('active');
+            if (signupForm) signupForm.classList.add('active');
+            if (loginForm) loginForm.classList.remove('active');
+        });
+    }
+
+    // Login form submission
+    if (loginForm) {
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const emailInput = document.getElementById('login-email');
+            const passwordInput = document.getElementById('login-password');
+
+            if (!emailInput || !passwordInput) {
+                showToast('Login form inputs not found', 'error');
+                return;
+            }
+
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
+
+            if (!email || !password) {
+                showToast('Please enter both email and password', 'warning');
+                return;
+            }
+
+            try {
+                showToast('Logging in...', 'info');
+                const { data, error } = await signIn(email, password);
+
+                if (error) throw error;
+
+                console.log('Login successful:', data);
+                showToast('Login successful!', 'success');
+
+                // Close the modal
+                if (loginModal) {
+                    loginModal.classList.remove('visible');
+                }
+
+                // Update UI based on auth state
+                updateUIBasedOnAuthState(data.user);
+
+            } catch (error) {
+                console.error('Login error:', error);
+                showToast(`Login failed: ${error.message}`, 'error');
+            }
+        });
+    }
+
+    // Signup form submission
+    if (signupForm) {
+        signupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const emailInput = document.getElementById('signup-email');
+            const passwordInput = document.getElementById('signup-password');
+            const confirmInput = document.getElementById('signup-confirm');
+
+            if (!emailInput || !passwordInput || !confirmInput) {
+                showToast('Signup form inputs not found', 'error');
+                return;
+            }
+
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
+            const confirmPassword = confirmInput.value;
+
+            if (!email || !password || !confirmPassword) {
+                showToast('Please fill out all fields', 'warning');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                showToast('Passwords do not match', 'warning');
+                return;
+            }
+
+            try {
+                showToast('Creating account...', 'info');
+                const { data, error } = await signUp(email, password);
+
+                if (error) throw error;
+
+                console.log('Signup successful:', data);
+                showToast('Account created! Please check your email for verification.', 'success');
+
+                // Switch to login tab
+                if (loginTab) {
+                    loginTab.click();
+                }
+
+            } catch (error) {
+                console.error('Signup error:', error);
+                showToast(`Signup failed: ${error.message}`, 'error');
+            }
+        });
+    }
+
+    // Logout button
+    if (logoutButton) {
+        logoutButton.addEventListener('click', async () => {
+            try {
+                const { error } = await signOut();
+                if (error) throw error;
+
+                console.log('Logout successful');
+                showToast('Logged out successfully', 'info');
+
+                // Update UI
+                updateUIBasedOnAuthState(null);
+
+            } catch (error) {
+                console.error('Logout error:', error);
+                showToast(`Logout failed: ${error.message}`, 'error');
+            }
+        });
+    }
+
+    // User menu button toggles dropdown
+    if (userMenuButton && userDropdown) {
+        userMenuButton.addEventListener('click', () => {
+            userDropdown.classList.toggle('visible');
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!userMenuButton.contains(e.target) && !userDropdown.contains(e.target)) {
+                userDropdown.classList.remove('visible');
+            }
+        });
+    }
+
+    // Admin panel button
+    if (adminPanelButton && adminModal) {
+        adminPanelButton.addEventListener('click', () => {
+            adminModal.classList.add('visible');
+        });
+    }
+
+    // Close admin modal
+    if (closeAdminModal && adminModal) {
+        closeAdminModal.addEventListener('click', () => {
+            adminModal.classList.remove('visible');
+        });
+    }
+
+
+    // --- Initial UI Setup ---
+    console.log("Setting up initial UI and checking for existing session...");
+
+    // Check for existing session
+    getSession().then(({ data, error }) => {
+        if (error) {
+            console.error('Error checking session:', error);
+            updateUIBasedOnAuthState(null);
+            return;
+        }
+
+        if (data && data.session) {
+            console.log('Found existing session:', data.session);
+            updateUIBasedOnAuthState(data.session.user);
+        } else {
+            console.log('No active session found');
+            updateUIBasedOnAuthState(null);
+        }
+    });
+
+    // Set up auth state change listener
+    onAuthStateChange((event, session) => {
+        console.log('Auth state changed:', event);
+        updateUIBasedOnAuthState(session?.user || null);
     });
 
     // --- Helper function to show toast notifications ---
@@ -251,40 +570,57 @@ document.addEventListener('DOMContentLoaded', () => {
                         uploadDate: new Date().toLocaleString(),
                         companyData: parsedData // The array of company objects
                     };
-                    console.log("Attempting to save data object to chrome.storage.local:", fileInfo);
+                    console.log("Uploading CSV data to Supabase:", fileInfo);
 
-                    // Store the combined object in chrome.storage.local
-                    chrome.storage.local.set({ loadedCsvData: fileInfo }, () => {
-                        // Hide loading animation
+                    // Only allow upload if user is logged in and is joshua.cancel@kaseya.com
+                    if (!currentUser) {
                         setFileInputLoading(false);
+                        showToast("You must be logged in to upload CSV files", 'error');
+                        return;
+                    }
 
-                        console.log("chrome.storage.local.set callback executed.");
-                        if (chrome.runtime.lastError) {
-                            console.error("Error saving data to storage:", chrome.runtime.lastError);
-                            showToast("Error saving data. Please try again.", 'error');
-                        } else {
-                            console.log("SUCCESS: CSV data object saved to storage.");
-                            console.log("Calling populateDropdown with newly saved data...");
-                            populateDropdown(fileInfo.companyData); // Populate dropdown with new data
-                            console.log("Calling updateFileInfoDisplay with new file info...");
-                            updateFileInfoDisplay(fileInfo.name, fileInfo.uploadDate); // Update display immediately
+                    // Check specifically for joshua.cancel@kaseya.com
+                    if (currentUser.email !== 'joshua.cancel@kaseya.com') {
+                        setFileInputLoading(false);
+                        showToast("Only joshua.cancel@kaseya.com can upload CSV files", 'error');
+                        return;
+                    }
+
+                    // Upload to Supabase
+                    uploadCSVData(fileInfo)
+                        .then(() => {
+                            setFileInputLoading(false);
+                            console.log("SUCCESS: CSV data uploaded to Supabase.");
+                            showToast("CSV data uploaded successfully!", 'success');
 
                             // Add success animation to file input
                             const fileLabel = document.querySelector('.file-input-label');
-                            fileLabel.classList.add('success');
-                            setTimeout(() => fileLabel.classList.remove('success'), 2000);
+                            if (fileLabel) { // Check if element exists
+                                fileLabel.classList.add('success');
+                                setTimeout(() => fileLabel.classList.remove('success'), 2000);
+                            }
 
-                            showToast("CSV data loaded successfully!", 'success');
+                            // Refresh credentials from Supabase
+                            getAllCompanyCredentials().then(credentials => {
+                                console.log("Refreshed credentials:", credentials);
+                                populateDropdown(credentials);
 
-                            // Animate form fields appearing
-                            const formGroups = document.querySelectorAll('.form-group');
-                            formGroups.forEach((group, index) => {
-                                setTimeout(() => {
-                                    group.classList.add('visible');
-                                }, 100 + (index * 100));
+                                // Update file info
+                                if (fileInfoDisplay) {
+                                    fileInfoDisplay.textContent = `Loaded: ${file.name}`;
+                                }
+
+                                // Clear the file input
+                                csvFileInput.value = '';
                             });
-                        }
-                    });
+                        })
+                        .catch(error => {
+                            setFileInputLoading(false);
+                            console.error("Error uploading CSV data to Supabase:", error);
+                            showToast(`Error uploading data: ${error.message}`, 'error');
+                            csvFileInput.value = ''; // Reset file input on error
+                        });
+
                 } else {
                      setFileInputLoading(false);
                      showToast("Failed to parse CSV. Check format and headers.", 'error');
@@ -320,8 +656,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Find the selected company in the cached data
-        const selectedCompany = companyDataCache.find(company => company["Account Name"] === selectedCompanyName);
+        // Find the selected company in the cached data (using new cache)
+        const selectedCompany = companyCredentialsCache.find(company => company["Account Name"] === selectedCompanyName);
         console.log("Company selected:", selectedCompanyName); // Log selected name
 
         if (selectedCompany) {
@@ -378,8 +714,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Find the selected company in the cached data
-        const selectedCompanyData = companyDataCache.find(company => company["Account Name"] === selectedCompanyName);
+        // Find the selected company in the cached data (using new cache)
+        const selectedCompanyData = companyCredentialsCache.find(company => company["Account Name"] === selectedCompanyName);
 
         if (!selectedCompanyData) {
             showToast("Selected company data not found. Please reload the CSV.", 'error');

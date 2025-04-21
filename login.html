@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AutoKey - Login</title>
+    <link rel="stylesheet" href="popup.css">
+    <link rel="stylesheet" href="login.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header with logo -->
+        <header class="app-header">
+            <div class="logo-container">
+                <div class="logo-wrapper">
+                    <img src="AutoKey Logo.png" id="logoImage" alt="AutoKey Logo" class="logo-image">
+                </div>
+                <div class="logo-glow"></div>
+            </div>
+        </header>
+
+        <!-- Main content area -->
+        <main id="main-content">
+            <div class="auth-container">
+                <!-- Login Form -->
+                <div id="login-form" class="auth-form active">
+                    <h2 class="auth-title">Login</h2>
+                    <div class="form-group">
+                        <label for="login-email" class="form-label">Email</label>
+                        <input type="email" id="login-email" class="form-input" placeholder="Enter your email">
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password" class="form-label">Password</label>
+                        <input type="password" id="login-password" class="form-input" placeholder="Enter your password">
+                    </div>
+                    <button id="login-button" type="button" class="action-button">
+                        <span class="button-text">Login</span>
+                    </button>
+                    <p class="auth-switch">
+                        Don't have an account? <a href="#" id="show-signup">Sign up</a>
+                    </p>
+                </div>
+
+                <!-- Signup Form -->
+                <div id="signup-form" class="auth-form">
+                    <h2 class="auth-title">Create Account</h2>
+                    <div class="form-group">
+                        <label for="signup-email" class="form-label">Email</label>
+                        <input type="email" id="signup-email" class="form-input" placeholder="Enter your email">
+                    </div>
+                    <div class="form-group">
+                        <label for="signup-password" class="form-label">Password</label>
+                        <input type="password" id="signup-password" class="form-input" placeholder="Create a password">
+                    </div>
+                    <div class="form-group">
+                        <label for="signup-confirm-password" class="form-label">Confirm Password</label>
+                        <input type="password" id="signup-confirm-password" class="form-input" placeholder="Confirm your password">
+                    </div>
+                    <button id="signup-button" type="button" class="action-button">
+                        <span class="button-text">Sign Up</span>
+                    </button>
+                    <p class="auth-switch">
+                        Already have an account? <a href="#" id="show-login">Login</a>
+                    </p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer with version info -->
+        <footer class="app-footer">
+            <p class="version-info">v1.0.0</p>
+        </footer>
+    </div>
+
+    <script src="login.js" type="module"></script>
+</body>
+</html>

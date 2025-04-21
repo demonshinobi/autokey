@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>AutoKey</title>
-    <link rel="stylesheet" href="basic.css">
+    <link rel="stylesheet" href="autokey.css">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,37 +11,31 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- Header with logo in top left and auth controls in top right -->
+        <!-- Header with logo in top left -->
         <header class="app-header">
             <div class="logo-container">
                 <div class="logo-wrapper">
                     <img src="AutoKey Logo.png" id="logoImage" alt="AutoKey Logo" class="logo-image">
+                    <div class="logo-glow"></div>
                 </div>
-                <div class="logo-glow"></div>
             </div>
 
-            <!-- Auth controls -->
             <div class="auth-controls">
-                <!-- When logged out -->
                 <div id="logged-out-controls" class="auth-state">
                     <button id="login-button" type="button" class="auth-button">Login</button>
                 </div>
 
-                <!-- When logged in -->
                 <div id="logged-in-controls" class="auth-state hidden">
                     <div class="user-menu-wrapper">
                         <button id="user-menu-button" type="button" class="user-avatar">
                             <span id="user-initial">A</span>
                         </button>
-                        <div id="user-dropdown" class="dropdown-menu hidden">
+                        <div id="user-dropdown" class="dropdown-menu">
                             <div class="dropdown-header">
                                 <span id="user-email">user@example.com</span>
                                 <span id="user-role" class="user-role">User</span>
                             </div>
                             <div class="dropdown-divider"></div>
-                            <button id="admin-panel-button" type="button" class="dropdown-item admin-only hidden">
-                                Admin Panel
-                            </button>
                             <button id="logout-button" type="button" class="dropdown-item">
                                 Logout
                             </button>
@@ -54,7 +48,7 @@
         <!-- Main content area -->
         <main id="main-content">
             <!-- File upload section with animation -->
-            <section class="upload-section">
+            <section class="upload-section" id="csv-upload-section" style="display: none;">
                 <div class="file-input-wrapper">
                     <input type="file" id="csvFileInput" accept=".csv" class="file-input">
                     <label for="csvFileInput" class="file-input-label">
@@ -77,23 +71,23 @@
                         </select>
                     </div>
                 </div>
-
+                
                 <div class="form-group">
                     <label for="uidInput" class="form-label">UID</label>
                     <input type="text" id="uidInput" class="form-input" readonly>
                 </div>
-
+                
                 <div class="form-group">
                     <label for="usernameInput" class="form-label">Username</label>
                     <input type="text" id="usernameInput" class="form-input" readonly>
                 </div>
-
+                
                 <div class="form-group">
                     <label for="platformInput" class="form-label">Platform</label>
                     <input type="text" id="platformInput" class="form-input" readonly>
                 </div>
             </section>
-
+            
             <!-- Action button with animation -->
             <section class="action-section">
                 <button id="fillButton" type="button" class="action-button">
@@ -124,94 +118,44 @@
 
             <!-- Login Form -->
             <form id="login-form" class="auth-form active">
-                <div class="form-group">
+                <div class="form-group visible">
                     <label for="login-email" class="form-label">Email</label>
                     <input type="email" id="login-email" class="form-input" placeholder="Enter your email" required>
                 </div>
-                <div class="form-group">
+                <div class="form-group visible">
                     <label for="login-password" class="form-label">Password</label>
                     <input type="password" id="login-password" class="form-input" placeholder="Enter your password" required>
                 </div>
-                <button id="login-submit" type="submit" class="action-button">
+                <button id="login-submit" type="submit" class="action-button visible">
                     <span class="button-text">Login</span>
                 </button>
             </form>
 
             <!-- Signup Form -->
             <form id="signup-form" class="auth-form">
-                <div class="form-group">
+                <div class="form-group visible">
                     <label for="signup-email" class="form-label">Email</label>
                     <input type="email" id="signup-email" class="form-input" placeholder="Enter your email" required>
                 </div>
-                <div class="form-group">
+                <div class="form-group visible">
                     <label for="signup-password" class="form-label">Password</label>
                     <input type="password" id="signup-password" class="form-input" placeholder="Create a password" required>
                 </div>
-                <div class="form-group">
+                <div class="form-group visible">
                     <label for="signup-confirm" class="form-label">Confirm Password</label>
                     <input type="password" id="signup-confirm" class="form-input" placeholder="Confirm your password" required>
                 </div>
-                <button id="signup-submit" type="submit" class="action-button">
+                <button id="signup-submit" type="submit" class="action-button visible">
                     <span class="button-text">Sign Up</span>
                 </button>
             </form>
         </div>
     </div>
 
-    <!-- Admin Panel Modal -->
-    <div id="admin-modal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">Admin Panel</h3>
-                <button id="close-admin-modal" type="button" class="modal-close">&times;</button>
-            </div>
-
-            <div class="admin-tabs">
-                <button id="csv-tab" type="button" class="auth-tab active">CSV Management</button>
-                <button id="users-tab" type="button" class="auth-tab">User Management</button>
-            </div>
-
-            <!-- CSV Management -->
-            <div id="csv-management" class="admin-panel active">
-                <div class="panel-section">
-                    <h4 class="section-title">Upload New CSV</h4>
-                    <div class="file-input-wrapper admin-upload">
-                        <input type="file" id="adminCsvFileInput" accept=".csv" class="file-input">
-                        <label for="adminCsvFileInput" class="file-input-label">
-                            <div class="upload-content">
-                                <span class="upload-icon"></span>
-                                <span class="upload-text">Select CSV File</span>
-                            </div>
-                        </label>
-                    </div>
-                    <button id="upload-csv-button" type="button" class="action-button admin-button">
-                        <span class="button-text">Upload</span>
-                    </button>
-                </div>
-
-                <div class="panel-section">
-                    <h4 class="section-title">CSV History</h4>
-                    <div id="csv-history" class="history-list">
-                        <!-- CSV history will be populated here -->
-                        <div class="empty-state">No CSV files uploaded yet</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- User Management -->
-            <div id="user-management" class="admin-panel">
-                <div class="panel-section">
-                    <h4 class="section-title">Users</h4>
-                    <div id="user-list" class="user-list">
-                        <!-- User list will be populated here -->
-                        <div class="empty-state">No users found</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Load our basic script -->
-    <script type="module" src="dist/bundle.js"></script>
+    <!-- Load Supabase JS locally -->
+    <script src="supabase.js"></script>
+    
+    <!-- Main script -->
+    <script src="autokey.js"></script>
 </body>
 </html>
