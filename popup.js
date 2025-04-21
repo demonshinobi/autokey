@@ -1,4 +1,26 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Add animation class to body after DOM is loaded for initial animation
+    setTimeout(() => {
+        document.body.classList.add('loaded');
+    }, 100);
+
+    // Initialize UI elements with animations
+    const initUI = () => {
+        const formGroups = document.querySelectorAll('.form-group');
+        formGroups.forEach((group, index) => {
+            setTimeout(() => {
+                group.classList.add('visible');
+            }, 100 + (index * 100));
+        });
+
+        setTimeout(() => {
+            document.querySelector('.action-button').classList.add('visible');
+        }, 500);
+    };
+
+    // Call initUI after a short delay
+    setTimeout(initUI, 300);
+
     const csvFileInput = document.getElementById('csvFileInput');
     const companySelect = document.getElementById('companySelect');
     const uidInput = document.getElementById('uidInput');
@@ -160,6 +182,44 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // --- Helper function to show toast notifications ---
+    function showToast(message, type = 'info') {
+        // Create toast container if it doesn't exist
+        let toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container';
+            document.body.appendChild(toastContainer);
+        }
+
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.textContent = message;
+
+        // Add to container
+        toastContainer.appendChild(toast);
+
+        // Animate in
+        setTimeout(() => toast.classList.add('show'), 10);
+
+        // Remove after delay
+        setTimeout(() => {
+            toast.classList.remove('show');
+            toast.addEventListener('transitionend', () => toast.remove());
+        }, 3000);
+    }
+
+    // --- Add loading animation to file input label ---
+    function setFileInputLoading(isLoading) {
+        const fileLabel = document.querySelector('.file-input-label');
+        if (isLoading) {
+            fileLabel.classList.add('loading');
+        } else {
+            fileLabel.classList.remove('loading');
+        }
+    }
+
     // --- Event Listener for File Input ---
     csvFileInput.addEventListener('change', (event) => {
         const file = event.target.files[0];
@@ -170,12 +230,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (file.type !== 'text/csv' && !file.name.toLowerCase().endsWith('.csv')) {
              console.error("Invalid file type. Please select a CSV file.");
-             alert("Invalid file type. Please select a CSV file."); // User feedback
+             showToast("Invalid file type. Please select a CSV file.", 'error');
              csvFileInput.value = ''; // Reset file input
              return;
          }
 
-
+        // Show loading animation
+        setFileInputLoading(true);
         const reader = new FileReader();
 
         reader.onload = (e) => {
@@ -194,34 +255,54 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // Store the combined object in chrome.storage.local
                     chrome.storage.local.set({ loadedCsvData: fileInfo }, () => {
+                        // Hide loading animation
+                        setFileInputLoading(false);
+
                         console.log("chrome.storage.local.set callback executed.");
                         if (chrome.runtime.lastError) {
                             console.error("Error saving data to storage:", chrome.runtime.lastError);
-                            alert("Error saving data. Please try again.");
+                            showToast("Error saving data. Please try again.", 'error');
                         } else {
                             console.log("SUCCESS: CSV data object saved to storage.");
                             console.log("Calling populateDropdown with newly saved data...");
                             populateDropdown(fileInfo.companyData); // Populate dropdown with new data
                             console.log("Calling updateFileInfoDisplay with new file info...");
                             updateFileInfoDisplay(fileInfo.name, fileInfo.uploadDate); // Update display immediately
-                            alert("CSV data loaded successfully!"); // User feedback
+
+                            // Add success animation to file input
+                            const fileLabel = document.querySelector('.file-input-label');
+                            fileLabel.classList.add('success');
+                            setTimeout(() => fileLabel.classList.remove('success'), 2000);
+
+                            showToast("CSV data loaded successfully!", 'success');
+
+                            // Animate form fields appearing
+                            const formGroups = document.querySelectorAll('.form-group');
+                            formGroups.forEach((group, index) => {
+                                setTimeout(() => {
+                                    group.classList.add('visible');
+                                }, 100 + (index * 100));
+                            });
                         }
                     });
                 } else {
-                     alert("Failed to parse CSV. Check console for details and ensure the file format is correct (including headers: Account Name, username, AccountUid, Instance).");
+                     setFileInputLoading(false);
+                     showToast("Failed to parse CSV. Check format and headers.", 'error');
                      csvFileInput.value = ''; // Reset file input on parse failure
                 }
             } catch (error) {
+                setFileInputLoading(false);
                 console.error("Error processing CSV file:", error);
-                alert("An error occurred while processing the CSV file. Check console for details.");
+                showToast("Error processing CSV file.", 'error');
                 csvFileInput.value = ''; // Reset file input on error
             }
         };
 
-        reader.onerror = (e) => {
+        reader.onerror = () => {
+            setFileInputLoading(false);
             console.error("Error reading file:", reader.error);
-            alert("Error reading the selected file.");
-             csvFileInput.value = ''; // Reset file input
+            showToast("Error reading the selected file.", 'error');
+            csvFileInput.value = ''; // Reset file input
         };
 
         reader.readAsText(file);
@@ -260,12 +341,39 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // --- Button animation function ---
+    function animateButton(button, state) {
+        if (state === 'loading') {
+            button.classList.add('loading');
+            button.disabled = true;
+        } else if (state === 'success') {
+            button.classList.remove('loading');
+            button.classList.add('success');
+            setTimeout(() => {
+                button.classList.remove('success');
+                button.disabled = false;
+            }, 2000);
+        } else if (state === 'error') {
+            button.classList.remove('loading');
+            button.classList.add('error');
+            setTimeout(() => {
+                button.classList.remove('error');
+                button.disabled = false;
+            }, 2000);
+        } else {
+            button.classList.remove('loading', 'success', 'error');
+            button.disabled = false;
+        }
+    }
+
     // --- Autofill Button Logic ---
     fillButton.addEventListener('click', () => {
         const selectedCompanyName = companySelect.value;
 
         if (!selectedCompanyName) {
-            alert("Please select a company from the dropdown first.");
+            showToast("Please select a company from the dropdown first.", 'warning');
+            companySelect.classList.add('highlight-error');
+            setTimeout(() => companySelect.classList.remove('highlight-error'), 2000);
             console.log("Autofill attempt failed: No company selected.");
             return;
         }
@@ -274,21 +382,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedCompanyData = companyDataCache.find(company => company["Account Name"] === selectedCompanyName);
 
         if (!selectedCompanyData) {
-            alert("Error: Selected company data not found. Please try reloading the CSV.");
+            showToast("Selected company data not found. Please reload the CSV.", 'error');
             console.error("Autofill failed: Could not find data for selected company:", selectedCompanyName);
             return;
         }
+
+        // Start loading animation
+        animateButton(fillButton, 'loading');
 
         // Find the active tab and send the message
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (chrome.runtime.lastError) {
                 console.error("Error querying tabs:", chrome.runtime.lastError);
-                alert("Error finding active tab. Cannot autofill.");
+                showToast("Error finding active tab. Cannot autofill.", 'error');
+                animateButton(fillButton, 'error');
                 return;
             }
             if (tabs.length === 0) {
                 console.error("No active tab found.");
-                alert("No active tab found. Cannot autofill.");
+                showToast("No active tab found. Cannot autofill.", 'error');
+                animateButton(fillButton, 'error');
                 return;
             }
 
@@ -309,15 +422,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (chrome.runtime.lastError) {
                         // Handle cases where the content script isn't injected or doesn't respond
                         console.error("Error sending message to content script:", chrome.runtime.lastError.message);
-                        alert(`Could not connect to the page script. Ensure you are on the correct Autotask page and refresh the extension/page if necessary. Error: ${chrome.runtime.lastError.message}`);
+                        showToast(`Could not connect to the page script. Ensure you are on the correct page.`, 'error');
+                        animateButton(fillButton, 'error');
                     } else if (response && response.success) {
                         console.log("Autofill successful (reported by content script).");
-                        // Optionally provide user feedback like closing the popup or a small success message
-                        // window.close(); // Example: Close popup on success
+                        showToast("Autofill successful!", 'success');
+                        animateButton(fillButton, 'success');
+
+                        // Add success highlight to form fields
+                        const formInputs = document.querySelectorAll('.form-input');
+                        formInputs.forEach(input => {
+                            input.classList.add('highlight-success');
+                            setTimeout(() => input.classList.remove('highlight-success'), 2000);
+                        });
                     } else {
                         const errorMessage = response ? response.error : "Unknown error or no response from content script.";
                         console.error("Autofill failed (reported by content script):", errorMessage);
-                        alert(`Autofill failed: ${errorMessage}`);
+                        showToast(`Autofill failed: ${errorMessage}`, 'error');
+                        animateButton(fillButton, 'error');
                     }
                 }
             );

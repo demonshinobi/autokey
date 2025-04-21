@@ -1,47 +1,83 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>AutoKey Popup</title>
+    <meta charset="UTF-8">
+    <title>AutoKey</title>
     <link rel="stylesheet" href="popup.css">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <img src="AutoKey Logo.png" id="logoImage" alt="AutoKey Logo">
-    <h1>AutoKey - Shadow Access Autofill</h1>
-<div id="main-content">
+    <div class="app-container">
+        <!-- Header with logo in top left -->
+        <header class="app-header">
+            <div class="logo-container">
+                <div class="logo-wrapper">
+                    <img src="AutoKey Logo.png" id="logoImage" alt="AutoKey Logo" class="logo-image">
+                </div>
+                <div class="logo-glow"></div>
+            </div>
+        </header>
 
-    <div>
-        <div class="file-input-wrapper">
-            <label for="csvFileInput" class="file-input-label">Upload CSV</label>
-            <input type="file" id="csvFileInput" accept=".csv">
-        </div>
+        <!-- Main content area -->
+        <main id="main-content">
+            <!-- File upload section with animation -->
+            <section class="upload-section">
+                <div class="file-input-wrapper">
+                    <input type="file" id="csvFileInput" accept=".csv" class="file-input">
+                    <label for="csvFileInput" class="file-input-label">
+                        <div class="upload-content">
+                            <span class="upload-icon"></span>
+                            <span class="upload-text">Upload CSV</span>
+                        </div>
+                    </label>
+                </div>
+                <p id="fileInfoDisplay" class="file-info"></p>
+            </section>
+
+            <!-- Form fields with animations -->
+            <section class="form-section">
+                <div class="form-group">
+                    <label for="companySelect" class="form-label">Company</label>
+                    <div class="select-wrapper">
+                        <select id="companySelect" class="form-select">
+                            <option value="" disabled selected>-- Select Company --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="uidInput" class="form-label">UID</label>
+                    <input type="text" id="uidInput" class="form-input" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label for="usernameInput" class="form-label">Username</label>
+                    <input type="text" id="usernameInput" class="form-input" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label for="platformInput" class="form-label">Platform</label>
+                    <input type="text" id="platformInput" class="form-input" readonly>
+                </div>
+            </section>
+
+            <!-- Action button with animation -->
+            <section class="action-section">
+                <button id="fillButton" type="button" class="action-button">
+                    <span class="button-text">Autofill</span>
+                    <span class="button-icon"></span>
+                </button>
+            </section>
+        </main>
+
+        <!-- Footer with version info -->
+        <footer class="app-footer">
+            <p class="version-info">v1.0.0</p>
+        </footer>
     </div>
-    <p id="fileInfoDisplay" style="font-size: 0.8em; color: #ccc;"></p>
-
-    <div>
-        <label for="companySelect">Company:</label>
-        <select id="companySelect">
-            <option value="" disabled selected>-- Select Company --</option>
-        </select>
-    </div>
-
-    <div>
-        <label for="uidInput">UID:</label>
-        <input type="text" id="uidInput" readonly>
-    </div>
-
-    <div>
-        <label for="usernameInput">Username:</label>
-        <input type="text" id="usernameInput" readonly>
-    </div>
-
-    <div>
-        <label for="platformInput">Platform:</label>
-        <input type="text" id="platformInput" readonly>
-    </div>
-
-    <button id="fillButton">Autofill</button>
-</div>
 
     <script src="popup.js"></script>
 </body>
