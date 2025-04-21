@@ -7,9 +7,12 @@ function findPlatformValue(selectElement, targetUrl) {
 
     for (let i = 0; i < selectElement.options.length; i++) {
         const option = selectElement.options[i];
-        console.log(`[AutoKey Content Script] Comparing with option text: ${option.textContent}`);
+        const optionText = option.textContent ? option.textContent.trim() : '';
+        const targetText = targetUrl ? targetUrl.trim() : '';
+        // Add detailed comparison logging
+        console.log(`[AutoKey Content Script] Comparing: Option Text='${optionText}' (Raw='${option.textContent}') vs Target URL='${targetText}' (Raw='${targetUrl}')`);
         // Trim whitespace and compare
-        if (option.textContent && option.textContent.trim() === targetUrl.trim()) { // Fixed: && instead of &amp;
+        if (option.textContent && optionText === targetText) { // Use pre-trimmed values for comparison
             console.log(`[AutoKey Content Script] Match found! Option value: ${option.value}`);
             return option.value;
         }

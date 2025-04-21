@@ -302,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     data: {
                         AccountUid: selectedCompanyData.AccountUid,
                         username: selectedCompanyData.username,
-                        Instance: selectedCompanyData.Instance
+                        instance: selectedCompanyData.instance // FIX: Use lowercase 'instance'
                     }
                 },
                 (response) => {
