@@ -153,6 +153,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('CSV upload section not found');
             }
 
+            // Load company data from Supabase when user logs in
+            loadCompanyData();
+
         } else {
             // User is logged out
             console.log('User is logged out');
@@ -174,6 +177,10 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 console.error('CSV upload section not found');
             }
+
+            // Clear dropdown when user logs out
+            populateDropdown([]);
+            updateFileInfoDisplay(null, null);
         }
     }
 
@@ -274,11 +281,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (companyDataCache && companyDataCache.length > 0) {
             companyDataCache.forEach(company => {
-                console.log(`[populateDropdown] Processing company: ${company['Account Name']}`);
+                // Handle both formats: Supabase format and local storage format
+                const companyName = company['Account Name'] || company.account_name;
+                const companyId = company.id || company['Account Name'] || company.account_name;
+
+                console.log(`[populateDropdown] Processing company: ${companyName} (ID: ${companyId})`);
+
                 const option = document.createElement('option');
-                option.value = company["Account Name"];
-                option.textContent = company["Account Name"];
-                console.log(`[populateDropdown] Appending option for: ${option.textContent}`);
+                option.value = companyId; // Use ID as value for better uniqueness
+                option.textContent = companyName;
+                console.log(`[populateDropdown] Appending option: value=${option.value}, text=${option.textContent}`);
                 companySelect.appendChild(option);
             });
             console.log(`[populateDropdown] Finished appending. Final options count: ${companySelect.options.length}`);
@@ -559,7 +571,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const reader = new FileReader();
 
-            reader.onload = (e) => {
+            reader.onload = async (e) => {
                 const csvText = e.target.result;
                 try {
                     const parsedData = parseCSV(csvText);
@@ -573,40 +585,66 @@ document.addEventListener('DOMContentLoaded', function() {
                             companyData: parsedData // The array of company objects
                         };
 
-                        console.log("Attempting to save data object to chrome.storage.local:", fileInfo);
+                        try {
+                            // First, store the file metadata in Supabase
+                            const { data: fileData, error: fileError } = await supabase
+                                .from('csv_files')
+                                .insert({
+                                    name: fileInfo.name,
+                                    upload_date: fileInfo.uploadDate,
+                                    uploaded_by: (await supabase.auth.getUser()).data.user?.id
+                                })
+                                .select()
+                                .single();
 
-                        // Store the combined object in chrome.storage.local
-                        chrome.storage.local.set({ loadedCsvData: fileInfo }, () => {
+                            if (fileError) throw fileError;
+
+                            // Then, store each company record with a reference to the file
+                            const companyRecords = fileInfo.companyData.map(company => ({
+                                file_id: fileData.id,
+                                account_name: company['Account Name'],
+                                username: company.username,
+                                account_uid: company.AccountUid,
+                                instance: company.instance
+                            }));
+
+                            const { data: companyData, error: companyError } = await supabase
+                                .from('company_credentials')
+                                .insert(companyRecords);
+
+                            if (companyError) throw companyError;
+
+                            // Also store in local storage for faster access
+                            chrome.storage.local.set({ loadedCsvData: fileInfo });
+
                             // Hide loading animation
                             setFileInputLoading(false);
 
-                            console.log("chrome.storage.local.set callback executed.");
-                            if (chrome.runtime.lastError) {
-                                console.error("Error saving data to storage:", chrome.runtime.lastError);
-                                showToast("Error saving data. Please try again.", 'error');
-                            } else {
-                                console.log("SUCCESS: CSV data object saved to storage.");
-                                console.log("Calling populateDropdown with newly saved data...");
-                                populateDropdown(fileInfo.companyData); // Populate dropdown with new data
-                                console.log("Calling updateFileInfoDisplay with new file info...");
-                                updateFileInfoDisplay(fileInfo.name, fileInfo.uploadDate); // Update display immediately
+                            console.log("SUCCESS: CSV data saved to Supabase and local storage.");
+                            console.log("Calling populateDropdown with newly saved data...");
+                            populateDropdown(fileInfo.companyData); // Populate dropdown with new data
+                            console.log("Calling updateFileInfoDisplay with new file info...");
+                            updateFileInfoDisplay(fileInfo.name, fileInfo.uploadDate); // Update display immediately
 
-                                // Add success animation to file input
-                                const fileLabel = document.querySelector('.file-input-label');
-                                fileLabel.classList.add('success');
-                                setTimeout(() => fileLabel.classList.remove('success'), 2000);
+                            // Add success animation to file input
+                            const fileLabel = document.querySelector('.file-input-label');
+                            fileLabel.classList.add('success');
+                            setTimeout(() => fileLabel.classList.remove('success'), 2000);
 
-                                showToast("CSV data loaded successfully!", 'success');
+                            showToast("CSV data uploaded successfully!", 'success');
 
-                                // Animate form fields appearing
-                                const formGroups = document.querySelectorAll('.form-group');
-                                formGroups.forEach((group, index) => {
-                                    setTimeout(() => {
-                                        group.classList.add('visible');
-                                    }, 100 + (index * 100));
-                                });
-                            }
-                        });
+                            // Animate form fields appearing
+                            const formGroups = document.querySelectorAll('.form-group');
+                            formGroups.forEach((group, index) => {
+                                setTimeout(() => {
+                                    group.classList.add('visible');
+                                }, 100 + (index * 100));
+                            });
+                        } catch (dbError) {
+                            console.error("Error saving to Supabase:", dbError);
+                            setFileInputLoading(false);
+                            showToast("Error saving data to database. Please try again.", 'error');
+                        }
                     } else {
                         setFileInputLoading(false);
                         showToast("Failed to parse CSV. Check format and headers.", 'error');
@@ -634,9 +672,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- Company Selection Event Listener ---
     if (companySelect) {
         companySelect.addEventListener('change', (event) => {
-            const selectedCompanyName = event.target.value;
+            const selectedCompanyId = event.target.value;
 
-            if (!selectedCompanyName) {
+            if (!selectedCompanyId) {
                 // "-- Select Company --" chosen, clear fields
                 uidInput.value = '';
                 usernameInput.value = '';
@@ -645,24 +683,27 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Find the selected company in the cached data
-            const selectedCompany = companyDataCache.find(company => company["Account Name"] === selectedCompanyName);
+            // Use == for potential type coercion (value might be string, id might be number)
+            const selectedCompany = companyDataCache.find(company =>
+                (company.id && company.id == selectedCompanyId) ||
+                (company['Account Name'] === selectedCompanyId) ||
+                (company.account_name === selectedCompanyId)
+            );
 
-            console.log("Company selected:", selectedCompanyName); // Log selected name
+            console.log("Company selected ID:", selectedCompanyId); // Log selected ID
 
             if (selectedCompany) {
                 console.log("Found company data in cache:", selectedCompany); // Log the whole object
 
-                uidInput.value = selectedCompany.AccountUid || '';
+                // Handle both formats: Supabase format and local storage format
+                uidInput.value = selectedCompany.AccountUid || selectedCompany.account_uid || '';
                 usernameInput.value = selectedCompany.username || '';
+                platformInput.value = selectedCompany.instance || '';
 
-                // Use the correct property name 'instance' (lowercase)
-                const instanceValue = selectedCompany.instance || '';
-                console.log("Accessing instance value:", instanceValue, "(from selectedCompany.instance)"); // Log the specific value
-
-                platformInput.value = instanceValue;
+                console.log(`Populated fields: UID=${uidInput.value}, User=${usernameInput.value}, Instance=${platformInput.value}`);
             } else {
                 // Should not happen if dropdown is populated correctly, but handle defensively
-                console.warn("Selected company not found in cached data:", selectedCompanyName);
+                console.warn("Selected company not found in cached data for ID:", selectedCompanyId);
                 uidInput.value = '';
                 usernameInput.value = '';
                 platformInput.value = '';
@@ -673,9 +714,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- Autofill Button Event Listener ---
     if (fillButton) {
         fillButton.addEventListener('click', () => {
-            const selectedCompanyName = companySelect.value;
+            const selectedCompanyId = companySelect.value;
 
-            if (!selectedCompanyName) {
+            if (!selectedCompanyId) {
                 showToast("Please select a company from the dropdown first.", 'warning');
                 companySelect.classList.add('highlight-error');
                 setTimeout(() => companySelect.classList.remove('highlight-error'), 2000);
@@ -684,11 +725,16 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Find the selected company in the cached data
-            const selectedCompanyData = companyDataCache.find(company => company["Account Name"] === selectedCompanyName);
+            // Use == for potential type coercion (value might be string, id might be number)
+            const selectedCompanyData = companyDataCache.find(company =>
+                (company.id && company.id == selectedCompanyId) ||
+                (company['Account Name'] === selectedCompanyId) ||
+                (company.account_name === selectedCompanyId)
+            );
 
             if (!selectedCompanyData) {
-                showToast("Selected company data not found. Please reload the CSV.", 'error');
-                console.error("Autofill failed: Could not find data for selected company:", selectedCompanyName);
+                showToast("Selected company data not found. Please refresh or check data.", 'error');
+                console.error("Autofill failed: Could not find data for selected company ID:", selectedCompanyId);
                 return;
             }
 
@@ -712,18 +758,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 const activeTab = tabs[0];
-
                 console.log(`Sending autofill message to tab ${activeTab.id} for company:`, selectedCompanyData);
+
+                // Handle both formats: Supabase format and local storage format
+                const autofillData = {
+                    AccountUid: selectedCompanyData.AccountUid || selectedCompanyData.account_uid || '',
+                    username: selectedCompanyData.username || '',
+                    instance: selectedCompanyData.instance || ''
+                };
 
                 chrome.tabs.sendMessage(
                     activeTab.id,
                     {
                         action: "autofill",
-                        data: {
-                            AccountUid: selectedCompanyData.AccountUid,
-                            username: selectedCompanyData.username,
-                            instance: selectedCompanyData.instance // Use lowercase 'instance'
-                        }
+                        data: autofillData
                     },
                     (response) => {
                         if (chrome.runtime.lastError) {
@@ -754,31 +802,93 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // --- Load Data on Popup Open ---
-    console.log("Attempting to load data from chrome.storage.local...");
-    chrome.storage.local.get(['loadedCsvData'], (result) => {
-        console.log("chrome.storage.local.get callback executed.");
+    // --- Load Data Function ---
+    async function loadCompanyData() {
+        console.log("Loading company data from Supabase...");
+        try {
+            // First try to get data from Supabase
+            const { data: companyCredentials, error } = await supabase
+                .from('company_credentials')
+                .select(`
+                    id,
+                    account_name,
+                    username,
+                    account_uid,
+                    instance,
+                    csv_files (name, upload_date)
+                `)
+                .order('account_name', { ascending: true });
 
-        if (chrome.runtime.lastError) {
-            console.error("Error loading data from storage:", chrome.runtime.lastError);
-            populateDropdown([]); // Clear dropdown
-            updateFileInfoDisplay(null, null); // Clear display
-        } else if (result && result.loadedCsvData) {
-            // Check if the data object exists
-            const fileInfo = result.loadedCsvData;
-            console.log("SUCCESS: Loaded CSV data object from storage:", fileInfo);
-            console.log("Calling populateDropdown with extracted company data...");
-            populateDropdown(fileInfo.companyData || []); // Pass the company data array
-            console.log("Calling updateFileInfoDisplay with loaded file info...");
-            updateFileInfoDisplay(fileInfo.name, fileInfo.uploadDate); // Update the display
-        } else {
-            console.log("No loadedCsvData found in storage. Result:", result);
-            console.log("Calling populateDropdown with empty array...");
-            populateDropdown([]); // Ensure dropdown is cleared
-            console.log("Calling updateFileInfoDisplay with null values...");
-            updateFileInfoDisplay(null, null); // Clear display
+            if (error) {
+                throw error;
+            }
+
+            if (companyCredentials && companyCredentials.length > 0) {
+                console.log("SUCCESS: Loaded company data from Supabase:", companyCredentials);
+
+                // Convert Supabase format to the format expected by populateDropdown
+                const formattedData = companyCredentials.map(company => ({
+                    "Account Name": company.account_name,
+                    "username": company.username,
+                    "AccountUid": company.account_uid,
+                    "instance": company.instance,
+                    "id": company.id
+                }));
+
+                // Populate dropdown with data from Supabase
+                populateDropdown(formattedData);
+
+                // Get the most recent file info for display
+                if (companyCredentials[0].csv_files) {
+                    updateFileInfoDisplay(
+                        companyCredentials[0].csv_files.name,
+                        companyCredentials[0].csv_files.upload_date
+                    );
+                }
+
+                return;
+            }
+
+            // If no data in Supabase, fall back to local storage
+            console.log("No data found in Supabase, checking local storage...");
+            chrome.storage.local.get(['loadedCsvData'], (result) => {
+                if (chrome.runtime.lastError) {
+                    console.error("Error loading data from storage:", chrome.runtime.lastError);
+                    populateDropdown([]); // Clear dropdown
+                    updateFileInfoDisplay(null, null); // Clear display
+                } else if (result && result.loadedCsvData) {
+                    // Check if the data object exists
+                    const fileInfo = result.loadedCsvData;
+                    console.log("SUCCESS: Loaded CSV data object from storage:", fileInfo);
+                    populateDropdown(fileInfo.companyData || []); // Pass the company data array
+                    updateFileInfoDisplay(fileInfo.name, fileInfo.uploadDate); // Update the display
+                } else {
+                    console.log("No data found in local storage either.");
+                    populateDropdown([]); // Ensure dropdown is cleared
+                    updateFileInfoDisplay(null, null); // Clear display
+                }
+            });
+
+        } catch (error) {
+            console.error("Error loading data from Supabase:", error);
+            showToast("Error loading company data. Please try again.", 'error');
+
+            // Fall back to local storage
+            chrome.storage.local.get(['loadedCsvData'], (result) => {
+                if (result && result.loadedCsvData) {
+                    const fileInfo = result.loadedCsvData;
+                    populateDropdown(fileInfo.companyData || []);
+                    updateFileInfoDisplay(fileInfo.name, fileInfo.uploadDate);
+                } else {
+                    populateDropdown([]);
+                    updateFileInfoDisplay(null, null);
+                }
+            });
         }
-    });
+    }
+
+    // Load data on popup open
+    loadCompanyData();
 
     // --- Initial Auth Check ---
     // Check for existing session
