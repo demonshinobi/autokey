@@ -22,6 +22,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const actionButton = document.querySelector('.action-button');
     if (actionButton) actionButton.classList.add('visible');
 
+    // Show extension loaded message in header
+    setTimeout(() => {
+        showToast('AutoKey loaded', 'success');
+    }, 500);
+
     // --- UI Elements ---
     const loginButton = document.getElementById('login-button');
     const loggedOutControls = document.getElementById('logged-out-controls');
@@ -32,6 +37,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const userEmail = document.getElementById('user-email');
     const userRole = document.getElementById('user-role');
     const logoutButton = document.getElementById('logout-button');
+    const manageUsersButton = document.getElementById('manage-users-button');
 
     // Login modal elements
     const loginModal = document.getElementById('login-modal');
@@ -40,6 +46,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const signupTab = document.getElementById('signup-tab');
     const loginForm = document.getElementById('login-form');
     const signupForm = document.getElementById('signup-form');
+
+    // User management modal elements
+    const userManagementModal = document.getElementById('user-management-modal');
+    const closeUserModal = document.getElementById('close-user-modal');
+    const pendingUsersTab = document.getElementById('pending-users-tab');
+    const activeUsersTab = document.getElementById('active-users-tab');
+    const pendingUsersSection = document.getElementById('pending-users-section');
+    const activeUsersSection = document.getElementById('active-users-section');
+    const pendingUsersList = document.getElementById('pending-users-list');
+    const activeUsersList = document.getElementById('active-users-list');
 
     // Main content elements
     const mainContent = document.getElementById('main-content');
@@ -70,34 +86,29 @@ document.addEventListener('DOMContentLoaded', function() {
         return element;
     }
 
-    // Toast notification function
+    // Toast notification function - only uses header notification
     function showToast(message, type = 'info') {
         console.log(`Showing ${type} toast:`, message);
 
-        // Create toast container if it doesn't exist
-        let toastContainer = document.querySelector('.toast-container');
-        if (!toastContainer) {
-            toastContainer = document.createElement('div');
-            toastContainer.className = 'toast-container';
-            document.body.appendChild(toastContainer);
+        // Use header notification for all messages
+        const headerNotification = document.getElementById('header-notification');
+        if (headerNotification) {
+            // Reset any existing animation
+            headerNotification.style.animation = 'none';
+            headerNotification.offsetHeight; // Trigger reflow
+
+            // Set content and style
+            headerNotification.textContent = message;
+            headerNotification.className = `header-notification ${type} show`;
+
+            // Apply animation (the animation itself handles the fade-in and fade-out)
+            headerNotification.style.animation = 'subtle-pulse 2.5s ease-in-out forwards';
+
+            return;
         }
 
-        // Create toast element
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        toast.textContent = message;
-
-        // Add to container
-        toastContainer.appendChild(toast);
-
-        // Animate in
-        setTimeout(() => toast.classList.add('show'), 10);
-
-        // Remove after delay
-        setTimeout(() => {
-            toast.classList.remove('show');
-            toast.addEventListener('transitionend', () => toast.remove());
-        }, 3000);
+        // If header notification element doesn't exist, just log to console
+        console.warn('Header notification element not found, message not displayed:', message);
     }
 
     // Check if user is admin
@@ -139,15 +150,27 @@ document.addEventListener('DOMContentLoaded', function() {
             if (userEmail) userEmail.textContent = user.email;
             if (userRole) userRole.textContent = isAdmin ? 'Admin' : 'User';
 
-            // Show/hide CSV upload section based on email
+            // Show/hide admin section based on admin status
+            const adminSection = document.getElementById('admin-section');
+            if (adminSection) {
+                if (isAdmin) {
+                    adminSection.classList.remove('hidden');
+                    console.log('Admin section visible - User is admin');
+                } else {
+                    adminSection.classList.add('hidden');
+                    console.log('Admin section hidden - User is not admin');
+                }
+            }
+
+            // Show/hide CSV upload section based on admin status
             const csvUploadSection = document.getElementById('csv-upload-section');
             if (csvUploadSection) {
-                if (user.email === 'joshua.cancel@kaseya.com') {
+                if (isAdmin) {
                     csvUploadSection.style.display = 'block';
-                    console.log('CSV upload visible - User is joshua.cancel@kaseya.com');
+                    console.log('CSV upload visible - User is admin');
                 } else {
                     csvUploadSection.style.display = 'none';
-                    console.log('CSV upload hidden - User is not joshua.cancel@kaseya.com');
+                    console.log('CSV upload hidden - User is not admin');
                 }
             } else {
                 console.error('CSV upload section not found');
@@ -351,6 +374,137 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // --- User Management Functions ---
+    // Function to fetch users from Supabase
+    async function fetchUsers() {
+        try {
+            // Fetch all users from the user_access table
+            const { data: users, error } = await supabase
+                .from('user_access')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            return users || [];
+        } catch (error) {
+            console.error('Error fetching users:', error);
+            showToast('Error loading users', 'error');
+            return [];
+        }
+    }
+
+    // Function to update user access status
+    async function updateUserAccess(userId, approved) {
+        try {
+            const { data, error } = await supabase
+                .from('user_access')
+                .update({ approved })
+                .eq('id', userId);
+
+            if (error) throw error;
+
+            showToast(`User ${approved ? 'approved' : 'access revoked'}`, 'success');
+            return true;
+        } catch (error) {
+            console.error('Error updating user access:', error);
+            showToast(`Failed to update user access: ${error.message}`, 'error');
+            return false;
+        }
+    }
+
+    // Function to delete a user from the access list
+    async function deleteUserAccess(userId) {
+        try {
+            const { data, error } = await supabase
+                .from('user_access')
+                .delete()
+                .eq('id', userId);
+
+            if (error) throw error;
+
+            showToast('User access denied', 'success');
+            return true;
+        } catch (error) {
+            console.error('Error deleting user access:', error);
+            showToast(`Failed to deny user: ${error.message}`, 'error');
+            return false;
+        }
+    }
+
+    // Function to populate user lists
+    async function populateUserLists() {
+        const users = await fetchUsers();
+
+        // Clear existing lists
+        pendingUsersList.innerHTML = '';
+        activeUsersList.innerHTML = '';
+
+        let pendingCount = 0;
+        let activeCount = 0;
+
+        users.forEach(user => {
+            if (user.approved) {
+                // Active user
+                activeCount++;
+                const userItem = document.createElement('div');
+                userItem.className = 'user-item';
+                userItem.innerHTML = `
+                    <span class="user-email">${user.email}</span>
+                    <div class="user-actions">
+                        <button class="user-action-button revoke-button" data-user-id="${user.id}">Revoke</button>
+                    </div>
+                `;
+                activeUsersList.appendChild(userItem);
+
+                // Add event listener to revoke button
+                const revokeButton = userItem.querySelector('.revoke-button');
+                revokeButton.addEventListener('click', async () => {
+                    const userId = revokeButton.getAttribute('data-user-id');
+                    const success = await updateUserAccess(userId, false);
+                    if (success) populateUserLists();
+                });
+            } else {
+                // Pending user
+                pendingCount++;
+                const userItem = document.createElement('div');
+                userItem.className = 'user-item';
+                userItem.innerHTML = `
+                    <span class="user-email">${user.email}</span>
+                    <div class="user-actions">
+                        <button class="user-action-button approve-button" data-user-id="${user.id}">Approve</button>
+                        <button class="user-action-button deny-button" data-user-id="${user.id}">Deny</button>
+                    </div>
+                `;
+                pendingUsersList.appendChild(userItem);
+
+                // Add event listeners to buttons
+                const approveButton = userItem.querySelector('.approve-button');
+                approveButton.addEventListener('click', async () => {
+                    const userId = approveButton.getAttribute('data-user-id');
+                    const success = await updateUserAccess(userId, true);
+                    if (success) populateUserLists();
+                });
+
+                const denyButton = userItem.querySelector('.deny-button');
+                denyButton.addEventListener('click', async () => {
+                    const userId = denyButton.getAttribute('data-user-id');
+                    const success = await deleteUserAccess(userId);
+                    if (success) populateUserLists();
+                });
+            }
+        });
+
+        // Show empty message if no users
+        if (pendingCount === 0) {
+            pendingUsersList.innerHTML = '<div class="empty-list-message">No pending users</div>';
+        }
+
+        if (activeCount === 0) {
+            activeUsersList.innerHTML = '<div class="empty-list-message">No active users</div>';
+        }
+    }
+
     // --- Event Listeners ---
     // Login button shows the login modal
     console.log('Setting up login button click handler');
@@ -440,6 +594,43 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (error) throw error;
 
+                // Check if the user is approved
+                const { data: accessData, error: accessError } = await supabase
+                    .from('user_access')
+                    .select('approved')
+                    .eq('user_id', data.user.id)
+                    .single();
+
+                if (accessError) {
+                    console.error('Error checking user access:', accessError);
+                    // If there's no record, create one (for admin or existing users)
+                    if (data.user.email === 'joshua.cancel@kaseya.com') {
+                        // Auto-approve admin
+                        await supabase.from('user_access').insert({
+                            email: data.user.email,
+                            user_id: data.user.id,
+                            approved: true,
+                            created_at: new Date().toISOString()
+                        });
+                    } else {
+                        // Create pending record for other users
+                        await supabase.from('user_access').insert({
+                            email: data.user.email,
+                            user_id: data.user.id,
+                            approved: false,
+                            created_at: new Date().toISOString()
+                        });
+
+                        // Sign out the user since they're not approved
+                        await supabase.auth.signOut();
+                        throw new Error('Your account is pending approval by an administrator.');
+                    }
+                } else if (!accessData.approved) {
+                    // User exists but is not approved
+                    await supabase.auth.signOut();
+                    throw new Error('Your account is pending approval by an administrator.');
+                }
+
                 console.log('Login successful:', data);
                 showToast('Login successful!', 'success');
 
@@ -494,10 +685,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
             try {
                 showToast('Creating account...', 'info');
+                // Create the user account
                 const { data, error } = await supabase.auth.signUp({
                     email,
                     password
                 });
+
+                if (!error) {
+                    // Add the user to the user_access table with approved=false
+                    const { error: accessError } = await supabase
+                        .from('user_access')
+                        .insert({
+                            email: email,
+                            user_id: data.user.id,
+                            approved: false,
+                            created_at: new Date().toISOString()
+                        });
+
+                    if (accessError) {
+                        console.error('Error adding user to access table:', accessError);
+                    }
+                }
 
                 if (error) throw error;
 
@@ -547,6 +755,61 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!userMenuButton.contains(e.target) && !userDropdown.contains(e.target)) {
                 userDropdown.classList.remove('visible');
             }
+        });
+    }
+
+    // Manage Users button opens the user management modal
+    if (manageUsersButton) {
+        manageUsersButton.addEventListener('click', async () => {
+            console.log('Manage Users button clicked');
+            if (userManagementModal) {
+                // Close the user dropdown
+                userDropdown.classList.remove('visible');
+
+                // Show the modal
+                userManagementModal.style.display = 'flex';
+                userManagementModal.style.opacity = '1';
+                userManagementModal.style.pointerEvents = 'auto';
+                userManagementModal.classList.add('visible');
+
+                // Populate user lists
+                await populateUserLists();
+            } else {
+                console.error('User management modal not found');
+            }
+        });
+    }
+
+    // Close user management modal button
+    if (closeUserModal) {
+        closeUserModal.addEventListener('click', () => {
+            console.log('Close user modal button clicked');
+            if (userManagementModal) {
+                userManagementModal.classList.remove('visible');
+                // Set a timeout to hide the modal after the transition
+                setTimeout(() => {
+                    userManagementModal.style.display = 'none';
+                }, 300); // Match the transition duration
+            } else {
+                console.error('User management modal not found');
+            }
+        });
+    }
+
+    // Tab switching in user management modal
+    if (pendingUsersTab && activeUsersTab) {
+        pendingUsersTab.addEventListener('click', () => {
+            pendingUsersTab.classList.add('active');
+            activeUsersTab.classList.remove('active');
+            if (pendingUsersSection) pendingUsersSection.classList.add('active');
+            if (activeUsersSection) activeUsersSection.classList.remove('active');
+        });
+
+        activeUsersTab.addEventListener('click', () => {
+            activeUsersTab.classList.add('active');
+            pendingUsersTab.classList.remove('active');
+            if (activeUsersSection) activeUsersSection.classList.add('active');
+            if (pendingUsersSection) pendingUsersSection.classList.remove('active');
         });
     }
 

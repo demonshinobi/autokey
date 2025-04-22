@@ -16,9 +16,12 @@
             <div class="logo-container">
                 <div class="logo-wrapper">
                     <img src="AutoKey Logo.png" id="logoImage" alt="AutoKey Logo" class="logo-image">
-                    <div class="logo-glow"></div>
+                    <!-- Removed logo-glow div -->
                 </div>
             </div>
+
+            <!-- Header notification element -->
+            <div id="header-notification" class="header-notification"></div>
 
             <div class="auth-controls">
                 <div id="logged-out-controls" class="auth-state">
@@ -36,8 +39,15 @@
                                 <span id="user-role" class="user-role">User</span>
                             </div>
                             <div class="dropdown-divider"></div>
+                            <!-- Admin section - only visible to admins -->
+                            <div id="admin-section" class="admin-section hidden">
+                                <button id="manage-users-button" type="button" class="dropdown-item">
+                                    <span class="item-icon">👥</span> Manage Users
+                                </button>
+                                <div class="dropdown-divider"></div>
+                            </div>
                             <button id="logout-button" type="button" class="dropdown-item">
-                                Logout
+                                <span class="item-icon">🚪</span> Logout
                             </button>
                         </div>
                     </div>
@@ -71,23 +81,23 @@
                         </select>
                     </div>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="uidInput" class="form-label">UID</label>
                     <input type="text" id="uidInput" class="form-input" readonly>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="usernameInput" class="form-label">Username</label>
                     <input type="text" id="usernameInput" class="form-input" readonly>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="platformInput" class="form-label">Platform</label>
                     <input type="text" id="platformInput" class="form-input" readonly>
                 </div>
             </section>
-            
+
             <!-- Action button with animation -->
             <section class="action-section">
                 <button id="fillButton" type="button" class="action-button">
@@ -152,9 +162,48 @@
         </div>
     </div>
 
+    <!-- User Management Modal -->
+    <div id="user-management-modal" class="modal-overlay">
+        <div class="modal-content user-management-modal">
+            <div class="modal-header">
+                <h3 class="modal-title">User Management</h3>
+                <button id="close-user-modal" type="button" class="modal-close">&times;</button>
+            </div>
+
+            <div class="user-management-tabs">
+                <button id="pending-users-tab" type="button" class="auth-tab active">Pending</button>
+                <button id="active-users-tab" type="button" class="auth-tab">Active</button>
+            </div>
+
+            <!-- Pending Users Section -->
+            <div id="pending-users-section" class="user-section active">
+                <div class="user-list-header">
+                    <span class="user-email-header">Email</span>
+                    <span class="user-actions-header">Actions</span>
+                </div>
+                <div id="pending-users-list" class="user-list">
+                    <!-- User items will be added here dynamically -->
+                    <div class="empty-list-message">No pending users</div>
+                </div>
+            </div>
+
+            <!-- Active Users Section -->
+            <div id="active-users-section" class="user-section">
+                <div class="user-list-header">
+                    <span class="user-email-header">Email</span>
+                    <span class="user-actions-header">Actions</span>
+                </div>
+                <div id="active-users-list" class="user-list">
+                    <!-- User items will be added here dynamically -->
+                    <div class="empty-list-message">No active users</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Load Supabase JS locally -->
     <script src="supabase.js"></script>
-    
+
     <!-- Main script -->
     <script src="autokey.js"></script>
 </body>
