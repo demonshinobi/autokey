@@ -1,16 +1,4 @@
 /* Global Styles & Variables */
-:root {
-    --bg-color: #1e1e2e; /* Dark background */
-    --text-color: #cdd6f4; /* Light text */
-    --primary-color: #89b4fa; /* Accent color (e.g., buttons, highlights) */
-    --secondary-color: #45475a; /* Slightly lighter background for inputs */
-    --border-color: #585b70;
-    --hover-bg-color: #313244;
-    --button-hover-bg: #7aa1f8;
-    --logo-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-    --font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-    --border-radius: 4px;
-}
 
 * {
     box-sizing: border-box;
@@ -169,4 +157,176 @@ select {
 #fillButton:focus {
     outline: none;
     box-shadow: 0 0 0 3px rgba(137, 180, 250, 0.4); /* Focus ring */
+}
+/* --- User Management Menu Styles --- */
+.user-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #eee; /* Optional: separator */
+}
+
+.user-list-item:last-child {
+    border-bottom: none;
+}
+
+.user-email {
+    flex-grow: 1;
+    margin-right: 10px;
+    color: #333;
+    font-size: 0.9em;
+}
+
+/* User actions container for pending users */
+.user-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* Approve button */
+.approve-button {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 0.8em;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.approve-button:hover {
+    background-color: #45a049;
+}
+
+/* Deny button */
+.deny-button {
+    background-color: #f44336;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 0.8em;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.deny-button:hover {
+    background-color: #d32f2f;
+}
+
+.user-actions-menu-container {
+    position: relative; /* Needed for absolute positioning of the dropdown */
+    display: inline-block; /* Keep elements inline */
+}
+
+.user-menu-icon {
+    background: none;
+    border: none;
+    font-size: 1.2em;
+    cursor: pointer;
+    padding: 5px;
+    line-height: 1;
+    color: #555;
+    border-radius: 4px;
+}
+
+.user-menu-icon:hover {
+    background-color: #f0f0f0;
+    color: #000;
+}
+
+.user-menu-dropdown {
+    display: none; /* Hidden by default */
+    position: absolute;
+    right: 0; /* Align to the right of the container */
+    top: 100%; /* Position below the icon */
+    background-color: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+    z-index: 100; /* Ensure it's above other elements */
+    min-width: 120px; /* Minimum width */
+    padding: 5px 0; /* Padding top/bottom */
+}
+
+.user-menu-dropdown.visible {
+    display: block; /* Show when visible class is added */
+}
+
+.user-menu-option {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 0.9em;
+    color: #333;
+    cursor: pointer;
+    white-space: nowrap; /* Prevent wrapping */
+}
+
+.user-menu-option:hover {
+    background-color: #f5f5f5;
+}
+
+/* Specific styles for options if needed */
+.user-menu-option.revoke-option {
+    color: #d9534f; /* Reddish color for revoke */
+}
+.user-menu-option.revoke-option:hover {
+    background-color: #fbeae9;
+}
+
+.user-menu-option.make-admin-option {
+    color: #5cb85c; /* Greenish color for make admin */
+}
+.user-menu-option.make-admin-option:hover {
+    background-color: #eaf6ea;
+}
+/* --- Force styles for hardcoded user list structure --- */
+#active-users-list .user-menu-button {
+    display: inline-flex !important; /* Ensure button is visible */
+    padding: 5px !important;
+    min-width: 20px; /* Give it some minimum size */
+    min-height: 20px;
+    color: var(--text-color) !important;
+}
+
+#active-users-list .user-menu-dots {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: auto !important; /* Let dots determine width */
+    height: auto !important; /* Let dots determine height */
+}
+
+#active-users-list .user-menu-dot {
+    display: block !important;
+    width: 5px !important; /* Make dots slightly larger */
+    height: 5px !important;
+    background-color: var(--text-color) !important; /* Use text color */
+    border-radius: 50% !important;
+    margin: 2px 0 !important; /* Increase spacing */
+}
+
+#active-users-list .user-menu-dropdown {
+    display: none !important; /* Force hide */
+    position: absolute !important;
+    right: 0 !important;
+    top: 100% !important;
+    background-color: var(--bg-color) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--border-radius) !important;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15) !important;
+    z-index: 100 !important;
+    min-width: 120px !important;
+    padding: 5px 0 !important;
+}
+
+#active-users-list .user-menu-dropdown.visible {
+    display: block !important; /* Force show when visible */
 }

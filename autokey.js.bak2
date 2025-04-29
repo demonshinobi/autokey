@@ -9,18 +9,6 @@ console.log('Supabase client initialized:', supabase);
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM fully loaded');
 
-    // Log all modal elements in the document to help with debugging
-    console.log('All modal-overlay elements in the document:');
-    document.querySelectorAll('.modal-overlay').forEach(modal => {
-        console.log(`Modal: ${modal.id}`, {
-            display: getComputedStyle(modal).display,
-            opacity: getComputedStyle(modal).opacity,
-            visible: modal.classList.contains('visible'),
-            zIndex: getComputedStyle(modal).zIndex,
-            position: getComputedStyle(modal).position
-        });
-    });
-
     // Make sure body is visible immediately
     document.body.classList.add('loaded');
 
@@ -33,37 +21,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Make action button visible immediately
     const actionButton = document.querySelector('.action-button');
     if (actionButton) actionButton.classList.add('visible');
-
-    // Initialize the login modal to ensure it's in the correct state
-    let initialLoginModal = document.getElementById('login-modal');
-    if (initialLoginModal) {
-        console.log('Initializing login modal');
-        // Make sure it's hidden initially
-        initialLoginModal.style.display = 'none';
-        initialLoginModal.style.opacity = '0';
-        initialLoginModal.style.pointerEvents = 'none';
-        initialLoginModal.classList.remove('visible');
-        console.log('Login modal initialized with styles:', {
-            display: initialLoginModal.style.display,
-            opacity: initialLoginModal.style.opacity,
-            pointerEvents: initialLoginModal.style.pointerEvents,
-            classList: Array.from(initialLoginModal.classList),
-            width: initialLoginModal.offsetWidth,
-            height: initialLoginModal.offsetHeight,
-            zIndex: getComputedStyle(initialLoginModal).zIndex
-        });
-    } else {
-        console.error('Login modal not found during initialization');
-        // Try to find it by querying all modals
-        const allModals = document.querySelectorAll('.modal-overlay');
-        console.log('Found', allModals.length, 'modal-overlay elements:',
-            Array.from(allModals).map(m => ({
-                id: m.id,
-                display: getComputedStyle(m).display,
-                visible: m.classList.contains('visible')
-            }))
-        );
-    }
 
     // Show extension loaded message in header
     setTimeout(() => {
@@ -160,11 +117,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const { data: userData } = await supabase.auth.getUser();
             if (!userData.user) return false;
 
-            console.log('Checking admin status for user:', userData.user.email);
-
             // Joshua.cancel@kaseya.com is always admin
             if (userData.user.email === 'joshua.cancel@kaseya.com') {
-                console.log('User is hardcoded admin (joshua.cancel@kaseya.com)');
                 return true;
             }
 
@@ -176,31 +130,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 .maybeSingle();
 
             if (error) {
-                console.error('Error checking admin status in user_access table:', error);
-                // Continue to check profiles table
-            } else if (data && data.is_admin === true) {
-                console.log('User is admin according to user_access table');
-                return true;
+                console.error('Error checking admin status in database:', error);
+                return false;
             }
 
-            // As a fallback, also check the profiles table
-            if (userData.user.id) {
-                const { data: profileData, error: profileError } = await supabase
-                    .from('profiles')
-                    .select('is_admin')
-                    .eq('id', userData.user.id)
-                    .single();
-
-                if (profileError) {
-                    console.error('Error checking admin status in profiles table:', profileError);
-                } else if (profileData && profileData.is_admin === true) {
-                    console.log('User is admin according to profiles table');
-                    return true;
-                }
-            }
-
-            console.log('User is not an admin');
-            return false;
+            return data && data.is_admin === true;
         } catch (error) {
             console.error('Error checking admin status:', error);
             return false;
@@ -715,39 +649,20 @@ document.addEventListener('DOMContentLoaded', function() {
             // Fetch users from Supabase
             console.log('Fetching users from Supabase...');
 
-            // Get active users using direct database query to avoid RLS issues
-            console.log('Fetching active users...');
-            let activeUsers = [];
-            const { data: rpcActiveUsers, error: activeError } = await supabase
-                .rpc('get_active_users');
+            // Get active users
+            const { data: activeUsers, error: activeError } = await supabase
+                .from('user_access')
+                .select('*')
+                .eq('approved', true);
 
             if (activeError) {
-                console.error('Error fetching active users with RPC:', activeError);
-                console.log('Falling back to direct query...');
-
-                // Fallback to direct query
-                const { data: fallbackActiveUsers, error: fallbackError } = await supabase
-                    .from('user_access')
-                    .select('*')
-                    .eq('approved', true);
-
-                if (fallbackError) {
-                    console.error('Error fetching active users with fallback:', fallbackError);
-                    showToast('Error fetching active users', 'error');
-                    // Continue with empty active users array
-                } else {
-                    console.log('Successfully fetched active users with fallback:', fallbackActiveUsers);
-                    activeUsers = fallbackActiveUsers || [];
-                }
-            } else {
-                console.log('Successfully fetched active users with RPC:', rpcActiveUsers);
-                activeUsers = rpcActiveUsers || [];
+                console.error('Error fetching active users:', activeError);
+                showToast('Error fetching active users', 'error');
+                return;
             }
 
             // Get pending users
-            console.log('Fetching pending users...');
-            let pendingUsers = [];
-            const { data: fetchedPendingUsers, error: pendingError } = await supabase
+            const { data: pendingUsers, error: pendingError } = await supabase
                 .from('user_access')
                 .select('*')
                 .eq('approved', false);
@@ -755,49 +670,36 @@ document.addEventListener('DOMContentLoaded', function() {
             if (pendingError) {
                 console.error('Error fetching pending users:', pendingError);
                 showToast('Error fetching pending users', 'error');
-                // Continue with empty pending users array
-            } else {
-                console.log('Successfully fetched pending users:', fetchedPendingUsers);
-                pendingUsers = fetchedPendingUsers || [];
+                return;
             }
 
             // Combine users and deduplicate by email
             const emailMap = new Map();
 
-            console.log('Processing active users:', activeUsers);
             // Add active users first
-            if (Array.isArray(activeUsers)) {
-                activeUsers.forEach(user => {
-                    if (user && user.email && !emailMap.has(user.email)) {
-                        emailMap.set(user.email, {
-                            ...user,
-                            approved: true
-                        });
-                    }
-                });
-            } else {
-                console.error('activeUsers is not an array:', activeUsers);
-            }
+            activeUsers.forEach(user => {
+                if (!emailMap.has(user.email)) {
+                    emailMap.set(user.email, {
+                        ...user,
+                        approved: true
+                    });
+                }
+            });
 
-            console.log('Processing pending users:', pendingUsers);
             // Add pending users
-            if (Array.isArray(pendingUsers)) {
-                pendingUsers.forEach(user => {
-                    if (user && user.email && !emailMap.has(user.email)) {
-                        emailMap.set(user.email, {
-                            ...user,
-                            approved: false
-                        });
-                    }
-                });
-            } else {
-                console.error('pendingUsers is not an array:', pendingUsers);
-            }
+            pendingUsers.forEach(user => {
+                if (!emailMap.has(user.email)) {
+                    emailMap.set(user.email, {
+                        ...user,
+                        approved: false
+                    });
+                }
+            });
 
             // Convert map to array
             const users = Array.from(emailMap.values());
 
-            console.log('Combined users:', users);
+            console.log('Fetched users from Supabase:', users);
 
             let pendingCount = 0;
             let activeCount = 0;
@@ -810,10 +712,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     const userItem = document.createElement('div');
                     userItem.className = 'user-item';
 
-                    // Check if user is admin - either from the is_admin field or if it's Joshua
+                    // Check if user is admin
                     const isAdmin = user.is_admin || user.email === 'joshua.cancel@kaseya.com';
                     const adminBadge = isAdmin ? '<span class="admin-badge">Admin</span>' : '';
-                    console.log(`User ${user.email} admin status:`, isAdmin);
 
                     userItem.innerHTML = `
                         <span class="user-email">${user.email} ${adminBadge}</span>
@@ -861,25 +762,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (revokeItem) {
                         revokeItem.addEventListener('click', async () => {
                             const userId = revokeItem.getAttribute('data-user-id');
-                            try {
-                                // Delete the user from Supabase
-                                const { data, error } = await supabase
-                                    .from('user_access')
-                                    .delete()
-                                    .eq('id', userId);
-
-                                if (error) {
-                                    console.error('Error revoking access:', error);
-                                    showToast(`Error revoking access: ${error.message}`, 'error');
-                                    return;
-                                }
-
-                                showToast(`Access revoked for user`, 'success');
-                                populateUserLists();
-                            } catch (error) {
-                                console.error('Error revoking access:', error);
-                                showToast(`Error revoking access: ${error.message}`, 'error');
-                            }
+                            showToast(`Access revoked for user`, 'success');
+                            populateUserLists();
                         });
                     }
 
@@ -887,75 +771,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (makeAdminItem) {
                         makeAdminItem.addEventListener('click', async () => {
                             const userId = makeAdminItem.getAttribute('data-user-id');
-                            try {
-                                // Get the user's data
-                                const { data: userData, error: userError } = await supabase
-                                    .from('user_access')
-                                    .select('*')
-                                    .eq('id', userId)
-                                    .single();
-
-                                if (userError) {
-                                    console.error('Error getting user data:', userError);
-                                    showToast(`Error getting user data: ${userError.message}`, 'error');
-                                    return;
-                                }
-
-                                console.log('User data for admin promotion:', userData);
-
-                                // For users without an auth ID, we'll just mark them as admin in the user_access table
-                                if (!userData.user_id) {
-                                    console.log('User has no auth ID, updating user_access table directly');
-
-                                    // Update the user_access table to mark as admin
-                                    const { data, error } = await supabase
-                                        .from('user_access')
-                                        .update({ is_admin: true, updated_at: new Date().toISOString() })
-                                        .eq('id', userId);
-
-                                    if (error) {
-                                        console.error('Error setting admin status in user_access:', error);
-                                        showToast(`Error setting admin status: ${error.message}`, 'error');
-                                        return;
-                                    }
-
-                                    showToast(`User set as admin`, 'success');
-                                    populateUserLists();
-                                    return;
-                                }
-
-                                // For users with an auth ID, update both tables
-                                console.log('User has auth ID, updating profiles table');
-
-                                // Update the profiles table
-                                const { data: profileData, error: profileError } = await supabase
-                                    .from('profiles')
-                                    .update({ is_admin: true })
-                                    .eq('id', userData.user_id);
-
-                                if (profileError) {
-                                    console.error('Error setting admin status in profiles:', profileError);
-                                    // Continue anyway to update the user_access table
-                                }
-
-                                // Also update the user_access table
-                                const { data, error } = await supabase
-                                    .from('user_access')
-                                    .update({ is_admin: true, updated_at: new Date().toISOString() })
-                                    .eq('id', userId);
-
-                                if (error) {
-                                    console.error('Error setting admin status in user_access:', error);
-                                    showToast(`Error setting admin status: ${error.message}`, 'error');
-                                    return;
-                                }
-
-                                showToast(`User set as admin`, 'success');
-                                populateUserLists();
-                            } catch (error) {
-                                console.error('Error setting admin status:', error);
-                                showToast(`Error setting admin status: ${error.message}`, 'error');
-                            }
+                            showToast(`User set as admin`, 'success');
+                            populateUserLists();
                         });
                     }
 
@@ -963,75 +780,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (removeAdminItem) {
                         removeAdminItem.addEventListener('click', async () => {
                             const userId = removeAdminItem.getAttribute('data-user-id');
-                            try {
-                                // Get the user's data
-                                const { data: userData, error: userError } = await supabase
-                                    .from('user_access')
-                                    .select('*')
-                                    .eq('id', userId)
-                                    .single();
-
-                                if (userError) {
-                                    console.error('Error getting user data:', userError);
-                                    showToast(`Error getting user data: ${userError.message}`, 'error');
-                                    return;
-                                }
-
-                                console.log('User data for admin removal:', userData);
-
-                                // For users without an auth ID, we'll just update the user_access table
-                                if (!userData.user_id) {
-                                    console.log('User has no auth ID, updating user_access table directly');
-
-                                    // Update the user_access table to remove admin status
-                                    const { data, error } = await supabase
-                                        .from('user_access')
-                                        .update({ is_admin: false, updated_at: new Date().toISOString() })
-                                        .eq('id', userId);
-
-                                    if (error) {
-                                        console.error('Error removing admin status in user_access:', error);
-                                        showToast(`Error removing admin status: ${error.message}`, 'error');
-                                        return;
-                                    }
-
-                                    showToast(`Admin status removed`, 'success');
-                                    populateUserLists();
-                                    return;
-                                }
-
-                                // For users with an auth ID, update both tables
-                                console.log('User has auth ID, updating profiles table');
-
-                                // Update the profiles table
-                                const { data: profileData, error: profileError } = await supabase
-                                    .from('profiles')
-                                    .update({ is_admin: false })
-                                    .eq('id', userData.user_id);
-
-                                if (profileError) {
-                                    console.error('Error removing admin status in profiles:', profileError);
-                                    // Continue anyway to update the user_access table
-                                }
-
-                                // Also update the user_access table
-                                const { data, error } = await supabase
-                                    .from('user_access')
-                                    .update({ is_admin: false, updated_at: new Date().toISOString() })
-                                    .eq('id', userId);
-
-                                if (error) {
-                                    console.error('Error removing admin status in user_access:', error);
-                                    showToast(`Error removing admin status: ${error.message}`, 'error');
-                                    return;
-                                }
-
-                                showToast(`Admin status removed`, 'success');
-                                populateUserLists();
-                            } catch (error) {
-                                console.error('Error removing admin status:', error);
-                                showToast(`Error removing admin status: ${error.message}`, 'error');
-                            }
+                            showToast(`Admin status removed`, 'success');
+                            populateUserLists();
                         });
                     }
 
@@ -1046,11 +796,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     pendingCount++;
                     const userItem = document.createElement('div');
                     userItem.className = 'user-item';
-                    userItem.innerHTML = `
-                        <div class="user-email">${user.email}</div>
-                        <div class="user-actions">
-                            <button class="approve-button" data-user-id="${user.id}" data-user-email="${user.email}">Approve</button>
-                            <button class="deny-button" data-user-id="${user.id}" data-user-email="${user.email}">Deny</button>
                         </div>
                     `;
                     pendingUsersList.appendChild(userItem);
@@ -1130,100 +875,34 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Add click event to login button
     if (loginButton) {
-        console.log('Login button found, adding click event listener');
-
-        // Debug the login button
-        console.log('Login button properties:', {
-            id: loginButton.id,
-            classList: Array.from(loginButton.classList),
-            textContent: loginButton.textContent,
-            isConnected: loginButton.isConnected
-        });
-
-        loginButton.addEventListener('click', function(event) {
-            console.log('Login button clicked', event);
-
-            // Debug the login modal before showing it
-            if (loginModal) {
-                console.log('Login modal found, current state:', {
-                    id: loginModal.id,
-                    display: getComputedStyle(loginModal).display,
-                    opacity: getComputedStyle(loginModal).opacity,
-                    pointerEvents: getComputedStyle(loginModal).pointerEvents,
-                    classList: Array.from(loginModal.classList),
-                    isConnected: loginModal.isConnected
-                });
-
-                // First make sure the modal is visible in the DOM
-                loginModal.style.display = 'flex';
-                // Force a reflow to ensure the browser processes the display change
-                void loginModal.offsetWidth;
-                // Then add the visible class for the transition
-                loginModal.classList.add('visible');
-                // Ensure these styles are applied (may be redundant with the CSS, but helps ensure it works)
-                loginModal.style.opacity = '1';
-                loginModal.style.pointerEvents = 'auto';
-
-                console.log('Modal styles applied:', {
-                    display: loginModal.style.display,
-                    opacity: loginModal.style.opacity,
-                    pointerEvents: loginModal.style.pointerEvents,
-                    classList: Array.from(loginModal.classList)
-                });
-
-                // Try to force the modal to be visible
-                setTimeout(() => {
-                    console.log('Checking modal visibility after timeout:', {
-                        display: getComputedStyle(loginModal).display,
-                        opacity: getComputedStyle(loginModal).opacity,
-                        visible: loginModal.classList.contains('visible')
-                    });
-                }, 100);
+        loginButton.addEventListener('click', function() {
+            console.log('Login button clicked');
+            const modal = document.getElementById('login-modal');
+            if (modal) {
+                console.log('Found login modal, showing it');
+                modal.style.display = 'flex';
+                modal.style.opacity = '1';
+                modal.style.pointerEvents = 'auto';
+                modal.classList.add('visible');
             } else {
-                console.error('Login modal element not found when button was clicked');
-                // Try to find it again
-                const foundModal = document.getElementById('login-modal');
-                console.log('Attempted to find login modal again:', !!foundModal);
+                console.error('Login modal element not found');
             }
         });
     } else {
         console.error('Login button element not found');
-        // Try to find it by querying all buttons
-        const allButtons = document.querySelectorAll('button');
-        console.log('Found', allButtons.length, 'buttons:',
-            Array.from(allButtons).map(b => ({
-                id: b.id,
-                text: b.textContent.trim(),
-                class: Array.from(b.classList)
-            }))
-        );
     }
 
     // Close modal button
     if (closeModal) {
         closeModal.addEventListener('click', function() {
             console.log('Close modal button clicked');
-            // Use the already declared loginModal variable instead of creating a new one
-            if (loginModal) {
+            const modal = document.getElementById('login-modal');
+            if (modal) {
                 console.log('Removing visible class from login modal');
-                // First remove the visible class to trigger the transition
-                loginModal.classList.remove('visible');
-                // Set opacity to 0 to ensure it fades out
-                loginModal.style.opacity = '0';
-                // Disable pointer events during the transition
-                loginModal.style.pointerEvents = 'none';
-
-                console.log('Modal closing styles applied:', {
-                    display: loginModal.style.display,
-                    opacity: loginModal.style.opacity,
-                    pointerEvents: loginModal.style.pointerEvents,
-                    classList: Array.from(loginModal.classList)
-                });
-
+                modal.classList.remove('visible');
                 // Set a timeout to hide the modal after the transition
                 setTimeout(() => {
-                    loginModal.style.display = 'none';
-                    console.log('Modal hidden');
+                    modal.style.display = 'none';
                 }, 300); // Match the transition duration
             } else {
                 console.error('Login modal element not found');
@@ -1408,14 +1087,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('Login successful:', data);
                 showToast('Login successful!', 'success');
 
-                // Close the modal - use the already declared loginModal variable
-                if (loginModal) {
-                    loginModal.classList.remove('visible');
-                    loginModal.style.opacity = '0';
-                    loginModal.style.pointerEvents = 'none';
+                // Close the modal
+                const modal = document.getElementById('login-modal');
+                if (modal) {
+                    modal.classList.remove('visible');
                     // Set a timeout to hide the modal after the transition
                     setTimeout(() => {
-                        loginModal.style.display = 'none';
+                        modal.style.display = 'none';
                     }, 300); // Match the transition duration
                 } else {
                     console.error('Login modal element not found');

@@ -729,10 +729,12 @@ body.loaded {
     display: none;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
+    z-index: 9999 !important; /* Ensure high z-index */
     opacity: 0;
     pointer-events: none;
     transition: opacity var(--transition-normal), transform var(--transition-normal);
+    width: 100%; /* Ensure full width */
+    height: 100%; /* Ensure full height */
 }
 
 /* Add !important to make sure it overrides any other styles */
@@ -741,9 +743,10 @@ body.loaded {
 }
 
 .modal-overlay.visible {
-    opacity: 1;
-    pointer-events: auto;
+    opacity: 1 !important;
+    pointer-events: auto !important;
     display: flex !important;
+    visibility: visible !important;
 }
 
 .modal-content {
@@ -860,15 +863,20 @@ body.loaded {
 
 .user-email {
     font-size: 0.85rem;
-    flex: 1;
+    flex: 1; /* Allow email to take up space */
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    margin-right: 8px; /* Add space between email and actions */
+    min-width: 0; /* Allow email to shrink */
+    flex-shrink: 1; /* Allow email to shrink */
+    max-width: calc(100% - 50px); /* Limit width to prevent overlap */
 }
 
 .user-actions {
     display: flex;
     gap: 8px;
+    flex-shrink: 0; /* Prevent actions from shrinking */
 }
 
 .user-action-button {
@@ -945,4 +953,124 @@ body.loaded {
 
 .auth-form.active {
     display: block;
+}
+
+/* === User Management Menu Styles (Added for dynamic elements) === */
+
+.user-menu-wrapper {
+    position: relative; /* Container for button and dropdown */
+    display: inline-block;
+}
+
+/* Style for the button containing the dots */
+.user-menu-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--spacing-xs); /* Use spacing variable */
+    line-height: 1;
+    color: var(--text-secondary); /* Use secondary text color */
+    border-radius: var(--border-radius-sm); /* Use small radius */
+    display: inline-flex; /* Use inline-flex */
+    align-items: center;
+    justify-content: center;
+    transition: background-color var(--transition-fast);
+}
+
+.user-menu-button:hover {
+    background-color: var(--input-focus); /* Use input focus background for hover */
+    color: var(--text-color);
+}
+
+/* Container for the dots */
+.user-menu-dots {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: auto; /* Let dots determine width */
+    height: auto; /* Let dots determine height */
+}
+
+/* Style for individual dots */
+.user-menu-dot {
+    width: 4px; /* Make dots visible */
+    height: 4px;
+    background-color: currentColor; /* Inherit color from button */
+    border-radius: 50%;
+    margin: 1.5px 0; /* Adjust spacing */
+    display: block; /* Ensure they stack */
+}
+
+/* Style for the dropdown menu - hidden by default */
+.user-menu-dropdown {
+    display: none; /* Hidden by default */
+    position: absolute;
+    right: 0; /* Align to the right of the container */
+    top: 100%; /* Position below the button */
+    background-color: var(--card-bg); /* Use card background */
+    border: 1px solid var(--input-border); /* Use input border */
+    border-radius: var(--border-radius-md); /* Use medium radius */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); /* Consistent shadow */
+    z-index: 100; /* Ensure it's above other elements */
+    min-width: 150px; /* Adjust width as needed */
+    padding: var(--spacing-xs) 0; /* Use spacing variables */
+    margin-top: 4px; /* Add small space between button and dropdown */
+}
+
+/* Style for the dropdown menu when it should be shown */
+.user-menu-dropdown.show { /* Use .show class as per autokey.js */
+    display: block; /* Show the dropdown */
+}
+
+/* Style for items within the dropdown */
+.user-menu-item {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    text-align: left;
+    padding: var(--spacing-sm) var(--spacing-md); /* Use spacing variables */
+    font-size: 0.85rem;
+    color: var(--text-secondary); /* Use secondary text color */
+    cursor: pointer;
+    white-space: nowrap; /* Prevent wrapping */
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.user-menu-item:hover {
+    background-color: var(--input-focus); /* Use input focus background */
+    color: var(--text-color);
+}
+
+/* Specific styles for action items */
+.user-menu-item.revoke-access,
+.user-menu-item.remove-admin {
+    color: var(--accent-color); /* Red for revoke/remove */
+}
+.user-menu-item.revoke-access:hover,
+.user-menu-item.remove-admin:hover {
+    background-color: rgba(255, 62, 62, 0.1); /* Light red background on hover */
+    color: var(--accent-hover);
+}
+
+.user-menu-item.make-admin {
+    color: #10b981; /* Green for make admin */
+}
+.user-menu-item.make-admin:hover {
+    background-color: rgba(16, 185, 129, 0.1); /* Light green background on hover */
+    color: #10b981;
+}
+
+/* Admin badge style */
+.admin-badge {
+    background-color: var(--accent-color);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 0.7em;
+    margin-left: 5px;
+    margin-right: 8px; /* Add margin to the right */
+    vertical-align: middle;
+    font-weight: 500;
 }

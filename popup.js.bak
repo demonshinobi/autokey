@@ -862,7 +862,13 @@ function parseCSV(csvText) {
     /**
      * Fetches users and populates the user management modal list.
      */
+    }
 
+    /**
+     * Creates an HTML list item for a user with a three-dot menu for actions.
+     * @param {object} user - The user object from Supabase (expects id, email, is_admin).
+     * @returns {HTMLElement} - The created list item element.
+     */
     /**
      * Creates an HTML list item for a pending user with approve/deny buttons.
      * @param {object} user - The pending user object from Supabase.
@@ -886,8 +892,6 @@ function parseCSV(csvText) {
             approveButton.type = 'button';
             approveButton.className = 'action-button approve-button';
             approveButton.textContent = 'Approve';
-            approveButton.setAttribute('data-user-id', user.id);
-            approveButton.setAttribute('data-user-email', user.email);
             approveButton.addEventListener('click', async () => {
                 try {
                     await approveUser(user.email);
@@ -904,8 +908,6 @@ function parseCSV(csvText) {
             denyButton.type = 'button';
             denyButton.className = 'action-button deny-button';
             denyButton.textContent = 'Deny';
-            denyButton.setAttribute('data-user-id', user.id);
-            denyButton.setAttribute('data-user-email', user.email);
             denyButton.addEventListener('click', async () => {
                 try {
                     await denyUser(user.email);

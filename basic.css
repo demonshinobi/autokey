@@ -294,6 +294,95 @@ body {
     padding-right: 30px; /* Make space for arrow */
 }
 
+/* Searchable dropdown styles */
+.searchable-dropdown-wrapper {
+    position: relative;
+}
+
+/* Apply form-input styles to searchable-input */
+.searchable-input {
+    /* These styles override or add to the form-input class */
+    padding-right: 30px; /* Space for dropdown arrow */
+    background-image: url('data:image/svg+xml;utf8,<svg fill="%23cdd6f4" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>'); /* Custom arrow */
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 1em;
+    cursor: pointer;
+    /* Force text color to be visible */
+    color: #cdd6f4 !important;
+    /* Ensure other text properties are set */
+    font-size: 0.9em !important;
+    font-family: var(--font-family) !important;
+}
+
+.searchable-dropdown-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    z-index: 10;
+    margin-top: 4px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.searchable-dropdown-list.hidden {
+    display: none;
+}
+
+.dropdown-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.dropdown-item:hover,
+.dropdown-item.highlighted {
+    background-color: var(--hover-bg-color);
+}
+
+.dropdown-item.selected {
+    background-color: rgba(137, 180, 250, 0.2);
+    color: var(--primary-color);
+}
+
+.no-results {
+    padding: 8px 12px;
+    color: var(--text-muted);
+    font-style: italic;
+    text-align: center;
+}
+
+/* Highlight effects */
+.highlight-error {
+    border-color: #f87171 !important;
+    box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.3) !important;
+    animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+.highlight-success {
+    border-color: #10b981 !important;
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3) !important;
+    animation: pulse 0.5s ease-in-out;
+}
+
+@keyframes shake {
+    10%, 90% { transform: translateX(-1px); }
+    20%, 80% { transform: translateX(2px); }
+    30%, 50%, 70% { transform: translateX(-3px); }
+    40%, 60% { transform: translateX(3px); }
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
 /* Style readonly inputs */
 .form-input[readonly] {
     background-color: #313244; /* Slightly darker for readonly */
@@ -327,6 +416,58 @@ body {
     outline: none;
     box-shadow: 0 0 0 3px rgba(137, 180, 250, 0.4); /* Add focus ring */
 }
+
+/* User management styles */
+
+
+.admin-badge {
+    display: inline-block;
+    background-color: var(--accent-color);
+    color: white;
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+/* User list header styles */
+.user-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.user-header-email {
+    flex: 1;
+}
+
+.user-header-actions {
+    text-align: right;
+}
+
+.user-section {
+    margin-top: var(--spacing-sm);
+}
+
+
+
+
+
+
+
+/* User action menu */
+
+
+
+
+
+
+
 
 /* User dropdown */
 .user-avatar {

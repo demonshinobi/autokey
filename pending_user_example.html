@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pending User Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1e1e1e;
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+        }
+        .user-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #333;
+            margin-bottom: 10px;
+        }
+        .user-email {
+            flex-grow: 1;
+            margin-right: 10px;
+        }
+        .user-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .approve-button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .deny-button {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Pending User Example</h1>
+    <div id="pending-users-list"></div>
+
+    <script>
+        // Mock Supabase client
+        const supabase = {
+            from: (table) => ({
+                select: () => ({
+                    eq: (field, value) => ({
+                        data: [],
+                        error: null
+                    })
+                }),
+                update: (data) => ({
+                    eq: (field, value) => ({
+                        data: [],
+                        error: null
+                    })
+                }),
+                delete: () => ({
+                    eq: (field, value) => ({
+                        data: [],
+                        error: null
+                    })
+                })
+            })
+        };
+
+        // Mock user data
+        const user = {
+            id: 'c26b6478-10ee-434e-bf70-95c8e10756d8',
+            email: 'josheluno87@gmail.com',
+            approved: false,
+            created_at: '2025-04-23 13:36:08.478+00',
+            updated_at: '2025-04-23 13:36:09.622196+00'
+        };
+
+        // Create the pending user item
+        const pendingUsersList = document.getElementById('pending-users-list');
+        const userItem = document.createElement('div');
+        userItem.className = 'user-item';
+        userItem.innerHTML = `
+            <div class="user-email">${user.email}</div>
+            <div class="user-actions">
+                <button class="approve-button" data-user-id="${user.id}" data-user-email="${user.email}">Approve</button>
+                <button class="deny-button" data-user-id="${user.id}" data-user-email="${user.email}">Deny</button>
+            </div>
+        `;
+        pendingUsersList.appendChild(userItem);
+
+        // Add event listeners to buttons
+        const approveButton = userItem.querySelector('.approve-button');
+        approveButton.addEventListener('click', async () => {
+            const userId = approveButton.getAttribute('data-user-id');
+            const userEmail = approveButton.getAttribute('data-user-email');
+            
+            try {
+                // Update the user in Supabase
+                const { data, error } = await supabase
+                    .from('user_access')
+                    .update({ approved: true, updated_at: new Date().toISOString() })
+                    .eq('email', userEmail);
+                    
+                if (error) {
+                    console.error('Error approving user:', error);
+                    alert(`Error approving user: ${error.message}`);
+                    return;
+                }
+                
+                alert(`User ${userEmail} approved`);
+                // Reload the users
+            } catch (error) {
+                console.error('Error approving user:', error);
+                alert(`Error approving user: ${error.message}`);
+            }
+        });
+
+        const denyButton = userItem.querySelector('.deny-button');
+        denyButton.addEventListener('click', async () => {
+            const userId = denyButton.getAttribute('data-user-id');
+            const userEmail = denyButton.getAttribute('data-user-email');
+            
+            try {
+                // Delete the user from Supabase
+                const { data, error } = await supabase
+                    .from('user_access')
+                    .delete()
+                    .eq('email', userEmail);
+                    
+                if (error) {
+                    console.error('Error denying user:', error);
+                    alert(`Error denying user: ${error.message}`);
+                    return;
+                }
+                
+                alert(`User ${userEmail} denied`);
+                // Reload the users
+            } catch (error) {
+                console.error('Error denying user:', error);
+                alert(`Error denying user: ${error.message}`);
+            }
+        });
+    </script>
+</body>
+</html>

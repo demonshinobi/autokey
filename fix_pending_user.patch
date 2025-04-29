@@ -1,0 +1,164 @@
+--- autokey.js.old	2025-04-24 21:00:00.000000000 -0400
++++ autokey.js.new	2025-04-24 21:00:00.000000000 -0400
+@@ -647,37 +647,59 @@
+             pendingUsersList.innerHTML = '';
+             activeUsersList.innerHTML = '';
+ 
+-            // Use hardcoded data for now until database issues are fixed
+-            const users = [
+-                {
+-                    id: '1',
+-                    email: 'leonardo.mico@kaseya.com',
+-                    approved: true,
+-                    is_admin: false,
+-                    created_at: new Date().toISOString()
+-                },
+-                {
+-                    id: '2',
+-                    email: 'test.user@example.com',
+-                    approved: true,
+-                    is_admin: false,
+-                    created_at: new Date().toISOString()
+-                },
+-                {
+-                    id: '3',
+-                    email: 'joshua.cancel@kaseya.com',
+-                    approved: true,
+-                    is_admin: true,
+-                    created_at: new Date().toISOString()
+-                },
+-                {
+-                    id: '4',
+-                    email: 'pending.user@example.com',
+-                    approved: false,
+-                    is_admin: false,
+-                    created_at: new Date().toISOString()
++            // Fetch users from Supabase
++            console.log('Fetching users from Supabase...');
++            
++            // Get active users
++            const { data: activeUsers, error: activeError } = await supabase
++                .from('user_access')
++                .select('*')
++                .eq('approved', true);
++                
++            if (activeError) {
++                console.error('Error fetching active users:', activeError);
++                showToast('Error fetching active users', 'error');
++                return;
++            }
++            
++            // Get pending users
++            const { data: pendingUsers, error: pendingError } = await supabase
++                .from('user_access')
++                .select('*')
++                .eq('approved', false);
++                
++            if (pendingError) {
++                console.error('Error fetching pending users:', pendingError);
++                showToast('Error fetching pending users', 'error');
++                return;
++            }
++            
++            // Combine users and deduplicate by email
++            const emailMap = new Map();
++            
++            // Add active users first
++            activeUsers.forEach(user => {
++                if (!emailMap.has(user.email)) {
++                    emailMap.set(user.email, {
++                        ...user,
++                        approved: true
++                    });
+                 }
+-            ];
++            });
++            
++            // Add pending users
++            pendingUsers.forEach(user => {
++                if (!emailMap.has(user.email)) {
++                    emailMap.set(user.email, {
++                        ...user,
++                        approved: false
++                    });
++                }
++            });
++            
++            // Convert map to array
++            const users = Array.from(emailMap.values());
+ 
+-            console.log('Using hardcoded users for now:', users);
++            console.log('Fetched users from Supabase:', users);
+ 
+             let pendingCount = 0;
+             let activeCount = 0;
+@@ -797,7 +819,12 @@
+                     const userItem = document.createElement('div');
+                     userItem.className = 'user-item';
+                     userItem.innerHTML = `
+-                        <div class="user-actions">
++                        <div class="user-email">${user.email}</div>
++                        <div class="user-actions">
++                            <button class="approve-button" data-user-id="${user.id}" data-user-email="${user.email}">Approve</button>
++                            <button class="deny-button" data-user-id="${user.id}" data-user-email="${user.email}">Deny</button>
++                        </div>
++                    `;
+                         </div>
+                     `;
+                     pendingUsersList.appendChild(userItem);
+@@ -806,13 +833,35 @@
+                     const approveButton = userItem.querySelector('.approve-button');
+                     approveButton.addEventListener('click', async () => {
+                         const userId = approveButton.getAttribute('data-user-id');
+-                        showToast(`User approved`, 'success');
+-                        populateUserLists();
++                        const userEmail = approveButton.getAttribute('data-user-email');
++                        
++                        try {
++                            // Update the user in Supabase
++                            const { data, error } = await supabase
++                                .from('user_access')
++                                .update({ approved: true, updated_at: new Date().toISOString() })
++                                .eq('email', userEmail);
++                                
++                            if (error) {
++                                console.error('Error approving user:', error);
++                                showToast(`Error approving user: ${error.message}`, 'error');
++                                return;
++                            }
++                            
++                            showToast(`User ${userEmail} approved`, 'success');
++                            populateUserLists();
++                        } catch (error) {
++                            console.error('Error approving user:', error);
++                            showToast(`Error approving user: ${error.message}`, 'error');
++                        }
+                     });
+ 
+                     const denyButton = userItem.querySelector('.deny-button');
+                     denyButton.addEventListener('click', async () => {
+                         const userId = denyButton.getAttribute('data-user-id');
++                        const userEmail = denyButton.getAttribute('data-user-email');
++                        
++                        try {
++                            // Delete the user from Supabase
++                            const { data, error } = await supabase
++                                .from('user_access')
++                                .delete()
++                                .eq('email', userEmail);
++                                
++                            if (error) {
++                                console.error('Error denying user:', error);
++                                showToast(`Error denying user: ${error.message}`, 'error');
++                                return;
++                            }
++                            
++                            showToast(`User ${userEmail} denied`, 'success');
++                            populateUserLists();
++                        } catch (error) {
++                            console.error('Error denying user:', error);
++                            showToast(`Error denying user: ${error.message}`, 'error');
++                        }
+                         showToast(`User denied`, 'success');
+                         populateUserLists();
+                     });

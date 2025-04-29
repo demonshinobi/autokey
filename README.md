@@ -10,6 +10,8 @@ This extension helps autofill the Autotask Endpoint Management (AEM) shadow acce
 *   Autofills the AEM shadow login page (`https://www.centrastage.net/csm/login/internal`) with the selected company's details upon clicking "Autofill".
 *   Secure authentication with Supabase.
 *   Admin-only CSV upload functionality (restricted to joshua.cancel@kaseya.com).
+*   Admin user management system for approving/denying user access.
+*   Subtle notifications for better user experience.
 
 ## Setup Instructions
 
@@ -60,6 +62,7 @@ This extension helps autofill the Autotask Endpoint Management (AEM) shadow acce
     *   Click the "Login" button in the top right corner.
     *   Enter your Supabase credentials (email and password).
     *   If you don't have an account, you can sign up by clicking the "Sign Up" tab.
+    *   New users will need to be approved by an admin before they can access the system.
 
 2.  **Prepare CSV (Admin Only - joshua.cancel@kaseya.com):**
     *   Create a CSV file with the following exact headers in the first row:
@@ -74,7 +77,16 @@ This extension helps autofill the Autotask Endpoint Management (AEM) shadow acce
     *   The popup should display "Loaded: [your_filename] ([date/time])".
     *   The "Company" dropdown should now be populated with the names from your CSV.
 
-4.  **Autofill:**
+4.  **User Management (Admin Only):**
+    *   After logging in as an admin, click on your user initial in the top right corner.
+    *   Click "Manage Users" in the dropdown menu.
+    *   In the User Management modal, you can:
+        * View pending users who have signed up but haven't been approved yet
+        * Approve or deny pending users
+        * View active users who already have access
+        * Revoke access for active users if needed
+
+5.  **Autofill:**
     *   Navigate to the AEM shadow login page: `https://www.centrastage.net/csm/login/internal`
     *   Open the AutoKey extension popup again.
     *   Select the desired company from the dropdown. The UID, Username, and Platform fields in the popup will update.
@@ -94,7 +106,9 @@ This extension helps autofill the Autotask Endpoint Management (AEM) shadow acce
 *   **Login Issues:**
     *   If you can't log in, make sure you're using the correct credentials.
     *   If you don't have an account, sign up using the "Sign Up" tab.
-    *   Contact joshua.cancel@kaseya.com if you need access.
+    *   After signing up, you'll need to be approved by an admin before you can access the system.
+    *   If you get a message saying your account is pending approval, contact joshua.cancel@kaseya.com.
+    *   If you previously had access but can no longer log in, your access may have been revoked by an admin.
 *   **CSV Upload Not Visible:**
     *   The CSV upload functionality is only available to admin users (joshua.cancel@kaseya.com).
     *   Regular users will need to use the CSV data uploaded by an admin.
@@ -103,5 +117,8 @@ This extension helps autofill the Autotask Endpoint Management (AEM) shadow acce
 
 * Authentication is handled securely through Supabase
 * CSV upload functionality is restricted to admin users only
+* User management system ensures only approved users can access the system
+* Admin can revoke access at any time for any user
 * Data is stored locally in the browser and not sent to external servers (except for authentication)
 * Complies with Chrome's Content Security Policy (CSP) requirements
+* Subtle notifications provide feedback without exposing sensitive information
