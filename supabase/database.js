@@ -9,35 +9,34 @@ import supabase from './supabase-client.js';
  * @returns {Promise} - Supabase insert response
  */
 export async function uploadCSVData(csvData) {
-  // First, store the file metadata
-  const { data: fileData, error: fileError } = await supabase
-    .from('csv_files')
-    .insert({
-      name: csvData.name,
-      upload_date: csvData.uploadDate,
-      uploaded_by: (await supabase.auth.getUser()).data.user?.id
-    })
-    .select()
-    .single();
+  try {
+    console.log('Uploading CSV data with duplicate prevention...');
 
-  if (fileError) throw fileError;
+    // Get the current user ID
+    const userId = (await supabase.auth.getUser()).data.user?.id;
 
-  // Then, store each company record with a reference to the file
-  const companyRecords = csvData.companyData.map(company => ({
-    file_id: fileData.id,
-    account_name: company['Account Name'],
-    username: company.username,
-    account_uid: company.AccountUid,
-    instance: company.instance
-  }));
+    // Use the new function to upload data without duplicates
+    const { data, error } = await supabase.rpc(
+      'upload_csv_data_without_duplicates',
+      {
+        file_name: csvData.name,
+        upload_date: csvData.uploadDate,
+        uploaded_by: userId,
+        company_data: JSON.stringify(csvData.companyData)
+      }
+    );
 
-  const { data: companyData, error: companyError } = await supabase
-    .from('company_credentials')
-    .insert(companyRecords);
+    if (error) {
+      console.error('Error uploading CSV data:', error);
+      throw error;
+    }
 
-  if (companyError) throw companyError;
-
-  return { fileData, companyData };
+    console.log('CSV upload results:', data);
+    return data;
+  } catch (error) {
+    console.error('Error in uploadCSVData:', error);
+    throw error;
+  }
 }
 
 /**
