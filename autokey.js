@@ -107,7 +107,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const uidInput = document.getElementById('uidInput');
     const usernameInput = document.getElementById('usernameInput');
     const platformInput = document.getElementById('platformInput');
+    const itglueUrlInput = document.getElementById('itglueUrlInput');
     const fillButton = document.getElementById('fillButton');
+    const openItglueButton = document.getElementById('openItglueButton');
     const fileInfoDisplay = document.getElementById('fileInfoDisplay');
 
     // --- State Variables ---
@@ -1737,6 +1739,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 uidInput.value = '';
                 usernameInput.value = '';
                 platformInput.value = '';
+                itglueUrlInput.value = '';
+                openItglueButton.style.display = 'none';
                 return;
             }
 
@@ -1776,14 +1780,67 @@ document.addEventListener('DOMContentLoaded', function() {
             usernameInput.value = selectedCompany.username || '';
             platformInput.value = selectedCompany.instance || '';
 
-            console.log(`Populated fields: UID=${uidInput.value}, User=${usernameInput.value}, Instance=${platformInput.value}`);
+            // Handle ITGlue URL
+            const itglueUrl = selectedCompany.itglue_url || '';
+            itglueUrlInput.value = itglueUrl;
+
+            // Show or hide the ITGlue button based on whether we have a URL
+            if (itglueUrl) {
+                openItglueButton.style.display = 'flex';
+            } else {
+                openItglueButton.style.display = 'none';
+            }
+
+            console.log(`Populated fields: UID=${uidInput.value}, User=${usernameInput.value}, Instance=${platformInput.value}, ITGlue=${itglueUrlInput.value}`);
         } else {
             // Should not happen if dropdown is populated correctly, but handle defensively
             console.warn("Selected company not found in cached data");
             uidInput.value = '';
             usernameInput.value = '';
             platformInput.value = '';
+            itglueUrlInput.value = '';
+            openItglueButton.style.display = 'none';
         }
+    }
+
+    // --- Open ITGlue Button Event Listener ---
+    if (openItglueButton) {
+        openItglueButton.addEventListener('click', () => {
+            const selectedCompanyId = companySelect.value;
+
+            if (!selectedCompanyId) {
+                showToast("Please select a company from the dropdown first.", 'warning');
+                companySelect.classList.add('highlight-error');
+                setTimeout(() => companySelect.classList.remove('highlight-error'), 2000);
+                return;
+            }
+
+            const selectedCompany = companyDataCache.find(company =>
+                (company.id && company.id == selectedCompanyId) ||
+                (company['Account Name'] === selectedCompanyId) ||
+                (company.account_name === selectedCompanyId)
+            );
+
+            if (selectedCompany && selectedCompany.itglue_url) {
+                // Start loading animation
+                animateButton(openItglueButton, 'loading');
+
+                // Open the ITGlue URL in a new tab
+                chrome.tabs.create({ url: selectedCompany.itglue_url }, (tab) => {
+                    if (chrome.runtime.lastError) {
+                        console.error("Error opening ITGlue URL:", chrome.runtime.lastError);
+                        showToast("Error opening ITGlue URL.", 'error');
+                        animateButton(openItglueButton, 'error');
+                    } else {
+                        console.log("Opened ITGlue URL in new tab:", selectedCompany.itglue_url);
+                        showToast("Opened ITGlue in new tab!", 'success');
+                        animateButton(openItglueButton, 'success');
+                    }
+                });
+            } else {
+                showToast("No ITGlue URL available for this company.", 'warning');
+            }
+        });
     }
 
     // --- Autofill Button Event Listener ---
@@ -1885,6 +1942,9 @@ document.addEventListener('DOMContentLoaded', function() {
     async function loadCompanyData() {
         console.log("Loading company data from Supabase...");
         try {
+            // Add a timestamp to prevent caching
+            const timestamp = new Date().getTime();
+
             // First try to get data from Supabase
             const { data: companyCredentials, error } = await supabase
                 .from('company_credentials')
@@ -1894,6 +1954,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     username,
                     account_uid,
                     instance,
+                    itglue_url,
                     csv_files (name, upload_date)
                 `)
                 .order('account_name', { ascending: true });
@@ -1911,6 +1972,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     "username": company.username,
                     "AccountUid": company.account_uid,
                     "instance": company.instance,
+                    "itglue_url": company.itglue_url,
                     "id": company.id
                 }));
 
